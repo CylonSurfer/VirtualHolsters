@@ -306,7 +306,6 @@ namespace Holsters {
 				else {
 					itemName = "None";
 				}
-				//LastEquippedPAArmor[i] = itemName;
 			}
 			gInPowerArmor = true;
 			weaponsPAChange();
@@ -2334,9 +2333,8 @@ namespace Holsters {
 						_customTransform = lookup.value();
 						weap->m_localTransform = _customTransform;
 						_MESSAGE("EQUIP EVENT MOVE: WEAPON SPECIFIC CONFIG FOUND...");
-						char* artName = "HolsterArt";
-						artName += handle;
-						NiNode* artToMove = getChildNode(artName, (*g_player)->unkF0->rootNode);
+						std::string artName = "HolsterArt" + std::to_string(handle);
+						NiNode* artToMove = getChildNode(artName.c_str(), (*g_player)->unkF0->rootNode);
 						if (artToMove) {
 							artToMove->m_localTransform = weap->m_localTransform;
 						}
@@ -2374,9 +2372,8 @@ namespace Holsters {
 							_customTransform = lookup.value();
 							weap->m_localTransform = _customTransform;
 							//IsWMelee ? _MESSAGE("EQUIP EVENT MOVE: DEFAULT MELEE CONFIG APPLIED") : _MESSAGE("EQUIP EVENT MOVE: DEFAULT NON-MELEE CONFIG APPLIED");
-							char* artName = "HolsterArt";
-							artName += handle;
-							NiNode* artToMove = getChildNode(artName, (*g_player)->unkF0->rootNode);
+							std::string artName = "HolsterArt" + std::to_string(handle);
+							NiNode* artToMove = getChildNode(artName.c_str(), (*g_player)->unkF0->rootNode);
 							if (artToMove) {
 								artToMove->m_localTransform = weap->m_localTransform;
 							}
@@ -2387,9 +2384,8 @@ namespace Holsters {
 								_customTransform = lookup.value();
 								weap->m_localTransform = _customTransform;
 								//IsWMelee ? _MESSAGE("EQUIP EVENT MOVE: DEFAULT MELEE CONFIG APPLIED") : _MESSAGE("EQUIP EVENT MOVE: DEFAULT NON-MELEE CONFIG APPLIED");
-								char* artName = "HolsterArt";
-								artName += handle;
-								NiNode* artToMove = getChildNode(artName, (*g_player)->unkF0->rootNode);
+								std::string artName = "HolsterArt" + std::to_string(handle);
+								NiNode* artToMove = getChildNode(artName.c_str(), (*g_player)->unkF0->rootNode);
 								if (artToMove) {
 									artToMove->m_localTransform = weap->m_localTransform;
 								}
@@ -2399,9 +2395,8 @@ namespace Holsters {
 				}
 			}
 			else {
-				char* artName = "HolsterArt";
-				artName += handle;
-				NiNode* artToMove = getChildNode(artName, (*g_player)->unkF0->rootNode);
+				std::string artName = "HolsterArt" + std::to_string(handle);
+				NiNode* artToMove = getChildNode(artName.c_str(), (*g_player)->unkF0->rootNode);
 				if (artToMove) {
 					NiTransform _customTransform;
 					std::string searchname = FileNameCreation(handle, lastInHolster[handle]);
