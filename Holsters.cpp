@@ -222,7 +222,7 @@ namespace Holsters {
 				_isPipboyOpen = false;
 			}
 			//int SitState = Offsets::GetSitState((*g_gameVM)->m_virtualMachine, 0, *g_player);
-
+			g_messaging->Dispatch(g_pluginHandle, 17, nullptr, 0, "VirtualReloads");
 		}
 	}
 
@@ -2308,7 +2308,11 @@ namespace Holsters {
 								//_MESSAGE("Found Art");
 								artToRemove->flags |= 0x1;
 								artToRemove->m_localTransform.scale = 0;
-								artToRemove->m_parent->RemoveChild(artToRemove);
+								NiNode* parentNode = nullptr;
+								gInPowerArmor ? parentNode = FindNode(PAWeaponBones[handle].c_str()) : parentNode = FindNode(WeaponBones[handle].c_str());
+								if (parentNode) {
+									parentNode->RemoveChild(artToRemove);
+								}
 								//_MESSAGE("destroyed art");
 							}
 						}

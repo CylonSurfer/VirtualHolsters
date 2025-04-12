@@ -48,7 +48,8 @@ namespace Holsters
 	"GiftMenu",
 	"InventoryMenu",
 	"PipboyMenu",
-	"ExamineMenu"
+	"ExamineMenu",
+	"FavoritesMenu"
 	};
 
 

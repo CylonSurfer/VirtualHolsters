@@ -35,7 +35,7 @@ namespace Holsters
 				return kEvent_Continue;
 
 			const char* menuName = evn->menuName.c_str();
-
+			//_MESSAGE(menuName);
 			if (evn->isOpen) //Menu opened
 			{
 				//LOG("Menu %s opened.", menuName);
