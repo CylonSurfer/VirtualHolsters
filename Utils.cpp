@@ -77,6 +77,7 @@ namespace Holsters {
 	void infoTimer(int time) {
 		Sleep(time);
 		infoPressed = false;
+		doublepress = 0;
 	}
 
 	void checkingloadingcompleted() {

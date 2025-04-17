@@ -33,6 +33,7 @@ extern std::map<std::string, int> boneTreeMap;
 extern std::vector<std::string> boneTreeVec;
 extern std::string holsteredWeapNames[];
 extern TESObjectREFR* HolsterContainers[];
+extern int doublepress;
 
 
 namespace Holsters {

@@ -31,6 +31,7 @@ bool fistsPressed = false;
 bool infoPressed = false;
 bool saveloaded = false;
 bool MenuCheck = false;
+int doublepress = 0;
 bool gIsRightHanded;
 std::map<std::string, int> boneTreeMap;
 std::vector<std::string> boneTreeVec;
@@ -82,6 +83,7 @@ namespace Holsters {
 	int camDistancePA = 0;
 	int camDistance = 0;
 	int dist = 0;
+	
 	int holsterArtWorkPresets[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	int PAholsterArtWorkPresets[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	int PAholsterMaxValue[8];
@@ -405,14 +407,18 @@ namespace Holsters {
 
 				if (ConfigButtonPressed && !_isInfoButtonPressed && _isPipboyOpen) {
 					_isInfoButtonPressed = true;
-					std::thread t4(infoTimer, 500);
+					std::thread t4(infoTimer, 350);
 					t4.detach();
 					infoPressed = true;
+					if (doublepress < 2) {
+						doublepress++;
+					}
 				}
 				else if (!ConfigButtonPressed && _isInfoButtonPressed) {
 					_isInfoButtonPressed = false;
-					if (infoPressed) {
+					if (infoPressed && doublepress == 2) {
 						infoPressed = false;
+						doublepress = 0;
 						std::string mes = ("<br>Left Shoulder: " + holsteredWeapNames[1] + "</br>" + "<br>Right Shoulder: " + holsteredWeapNames[2] + "</br>" + "<br>Left Hip: " + holsteredWeapNames[3] + "</br>" + "<br>Right Hip: " + holsteredWeapNames[4] + "</br>" + "<br>Lower Back: " + holsteredWeapNames[5] + "</br>" + "<br>Left Chest: " + holsteredWeapNames[6] + "</br>"+ "<br>Right Chest: " + holsteredWeapNames[7] + "</br>");
 						ShowMessagebox(mes.c_str());
 						BSFixedString menuName("FavoritesMenu");
