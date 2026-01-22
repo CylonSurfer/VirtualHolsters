@@ -11,6 +11,7 @@
 #include "f4se/GameMenus.h"
 #include "ConfigModeMenu.h"
 #include "MenuChecker.h"
+#include "InvSorting.h"
 #include <iostream>
 #include <fstream>
 #include "f4se/NiNodes.h"
@@ -2612,6 +2613,57 @@ public:
 		// and that holsters are registered
 		return !Holsters::initBoneTreeFlag && !Holsters::HolsterRegisteredObjects.empty();
 	}
+
+	bool VH_CALL IsGripAssignedToHolster() const override
+	{
+		// k_EButton_Grip = 2 in OpenVR
+		return (Holsters::c_holsterButtonID == vr::EVRButtonId::k_EButton_Grip);
+	}
+
+	std::uint32_t VH_CALL GetHolsterButtonId() const override
+	{
+		return static_cast<std::uint32_t>(Holsters::c_holsterButtonID);
+	}
+
+	bool VH_CALL IsLeftHandedMode() const override
+	{
+		return !gIsRightHanded;
+	}
+
+	void VH_CALL switchHandMode() const override
+	{
+		gIsRightHanded = !gIsRightHanded;
+	}
+
+	bool VH_CALL AddHolster(std::uint32_t holsterIndex, const char* weaponName,
+		void* baseForm, void* weaponRef, bool isMelee) override
+	{
+		if (holsterIndex < 1 || holsterIndex > 7) {
+			_MESSAGE("AddHolster: Invalid holster index %d", holsterIndex);
+			return false;
+		}
+		if (!weaponName || weaponName[0] == '\0') {
+			_MESSAGE("AddHolster: Invalid weapon name");
+			return false;
+		}
+		if (!baseForm || !weaponRef) {
+			_MESSAGE("AddHolster: Invalid baseForm or weaponRef");
+			return false;
+		}
+
+		// Cast void* back to game types
+		TESForm* form = reinterpret_cast<TESForm*>(baseForm);
+		TESObjectREFR* refr = reinterpret_cast<TESObjectREFR*>(weaponRef);
+
+		// Call new addHolster function
+		std::string nameStr(weaponName);
+		void addHolster(int handle, std::string weapName, TESForm * baseForm, TESObjectREFR * object, bool isMeleeW);
+		
+
+		_MESSAGE("AddHolster: Added '%s' to holster %d (melee=%d)", weaponName, holsterIndex, isMelee);
+		return true;
+	}
+
 
 private:
 	VirtualHolstersAPIImpl() = default;

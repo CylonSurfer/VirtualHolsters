@@ -257,7 +257,7 @@ namespace Holsters {
 	}
 
 	void addHolster(int handle, std::string weapName, TESForm* baseForm, TESObjectREFR* object, bool isMeleeW) {
-		nRegisterWeapon(weapName.c_str(), baseForm, object, handle, isMeleeW);
+		nRegisterWeapon(baseForm->GetFullName(), baseForm, object, handle, isMeleeW);
 		BGSInventoryList* holsterINV = HolsterContainers[handle]->inventoryList;
 		if (holsterINV) {
 			holsterINV->inventoryLock.LockForReadAndWrite();

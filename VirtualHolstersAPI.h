@@ -116,6 +116,55 @@ public:
      * @return true if initialized and holsters are set up
      */
     virtual bool VH_CALL IsInitialized() const = 0;
+    /**
+     * Check if the Grip button is assigned as the holster button.
+     * If true, external mods should avoid using grip in holster zones.
+     *
+     * @return true if grip (k_EButton_Grip = 2) is the holster button
+     */
+    virtual bool VH_CALL IsGripAssignedToHolster() const = 0;
+
+    /**
+     * Get the current holster button ID (OpenVR EVRButtonId).
+     *
+     * Common values:
+     *   1 = k_EButton_ApplicationMenu (menu button)
+     *   2 = k_EButton_Grip
+     *   7 = k_EButton_A
+     *   32 = k_EButton_SteamVR_Touchpad
+     *   33 = k_EButton_SteamVR_Trigger
+     *
+     * @return OpenVR button ID for holstering
+     */
+    virtual std::uint32_t VH_CALL GetHolsterButtonId() const = 0;
+
+    /**
+     * Check if Virtual Holsters is in left-handed mode.
+     * This mirrors the game's bLeftHandedMode:VR INI setting.
+     *
+     * @return true if left-handed mode is enabled
+     */
+    virtual bool VH_CALL IsLeftHandedMode() const = 0;
+
+    /**
+    *Switches to the opposite hand for holster interaction / detection
+    */
+    virtual void VH_CALL switchHandMode() const = 0;
+
+    /**
+     * Add a grabbed weapon directly to a holster slot (Cylon's new API).
+     * This combines registration + name saving in one call.
+     *
+     * @param holsterIndex  Holster index (1-7)
+     * @param weaponName    ETDD name, or full weapon name as fallback
+     * @param baseForm      TESForm* of the weapon's base object
+     * @param weaponRef     TESObjectREFR* of the grabbed weapon instance
+     * @param isMelee       true if this is a melee weapon
+     * @return true if weapon was successfully added to holster
+     */
+    virtual bool VH_CALL AddHolster(std::uint32_t holsterIndex, const char* weaponName,
+        void* baseForm, void* weaponRef, bool isMelee) = 0;
+
 };
 
 
