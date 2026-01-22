@@ -10,6 +10,7 @@ namespace Holsters {
 	void WeapCheck(int i);
 	void WeapSort(int handle);
 	void resetHolsterName(int handle);
+	void addHolster(int handle, std::string weapName, TESForm* baseForm, TESObjectREFR* object, bool isMeleeW);
 	InventorySnapshot GetINVSnapShot(int handle, BGSInventoryList* inventory, std::string holstername);
 	ExtraTextDisplayData* FindHolster(BGSInventoryList* inventory);
 	BGSInventoryItem::Stack* GetStackByStackID(BGSInventoryItem* item, UInt16 stackID);

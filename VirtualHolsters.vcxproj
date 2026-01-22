@@ -194,6 +194,7 @@
     <ClInclude Include="PapyrusVRTypes.h" />
     <ClInclude Include="SimpleIni.h" />
     <ClInclude Include="Utils.h" />
+    <ClInclude Include="VirtualHolstersAPI.h" />
     <ClInclude Include="VRHook.h" />
     <ClInclude Include="VRHookAPI.h" />
     <ClInclude Include="VRManagerAPI.h" />

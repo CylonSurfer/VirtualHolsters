@@ -7,6 +7,7 @@
 #include "weaponOffset.h"
 #include "VRHookAPI.h"
 #include "VRHook.h"
+#include "VirtualHolstersAPI.h"
 #include "f4se/GameMenus.h"
 #include "ConfigModeMenu.h"
 #include "MenuChecker.h"
@@ -96,6 +97,7 @@ namespace Holsters {
 	std::string WeaponBones[8] = { "nout", "LArm_Collarbone", "RArm_Collarbone", "LLeg_Thigh", "RLeg_Thigh", "SPINE1", "Chest", "Chest" };
 	std::string PAWeaponBones[8] = { "nout", "Chest", "Chest", "LLeg_Thigh", "RLeg_Thigh", "SPINE1", "Chest", "Chest" };
 	std::string VisualArt[8];
+	const char* hArt[8] = { "nout", "HolsterArt1", "HolsterArt2", "HolsterArt3", "HolsterArt4", "HolsterArt5", "HolsterArt6", "HolsterArt7" };
 	UInt32 CurrentEquippedArmor[3][3];
 	UInt32 LastEquippedArmor[3][3];
 	UInt32 lastInHolster[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -224,7 +226,7 @@ namespace Holsters {
 				_isPipboyOpen = false;
 			}
 			//int SitState = Offsets::GetSitState((*g_gameVM)->m_virtualMachine, 0, *g_player);
-			g_messaging->Dispatch(g_pluginHandle, 17, nullptr, 0, "VirtualReloads");
+			//g_messaging->Dispatch(g_pluginHandle, 17, nullptr, 0, "VirtualReloads");
 		}
 	}
 
@@ -267,15 +269,7 @@ namespace Holsters {
 			TESObjectWEAP* currentWeap = Offsets::GetEquippedWeapon((*g_gameVM)->m_virtualMachine, 0, *g_player, 0);
 			if (!currentWeap && !fistssticky) {
 				fistssticky = true;
-				//_MESSAGE("Fists Equipped");
-				SInt32 evt = HolsterEvent_Leftfist;
-				if (g_HolsterEventRegs.m_data.size() > 0) {
-					g_HolsterEventRegs.ForEach(
-						[&evt](const EventRegistration<NullParameters>& reg) {
-							SendPapyrusEvent2<SInt32, UInt32>(reg.handle, reg.scriptName, HolsterEventName, evt, gCurHolster);
-						}
-					);
-				}
+				setFingerPositionScalar(true, 0.0, 0.0, 0.0, 0.0, 0.0);
 			}
 		}
 		else if (!isWeaponDrawn && equipsticky) {
@@ -283,14 +277,7 @@ namespace Holsters {
 			if (fistssticky) {
 				fistssticky = false;
 				//_MESSAGE("Fists UnEquipped");
-				SInt32 evt = HolsterEvent_LHandRelease;
-				if (g_HolsterEventRegs.m_data.size() > 0) {
-					g_HolsterEventRegs.ForEach(
-						[&evt](const EventRegistration<NullParameters>& reg) {
-							SendPapyrusEvent2<SInt32, UInt32>(reg.handle, reg.scriptName, HolsterEventName, evt, gCurHolster);
-						}
-					);
-				}
+				restoreFingerPoseControl(true);
 			}
 		}
 	}
@@ -360,14 +347,7 @@ namespace Holsters {
 						TESObjectWEAP* currentWeap = Offsets::GetEquippedWeapon((*g_gameVM)->m_virtualMachine, 0, *g_player, 0);
 						if (!currentWeap) {
 							if (fistsPressed) {
-								SInt32 evt = HolsterEvent_StrayFists;
-								if (g_HolsterEventRegs.m_data.size() > 0) {
-									g_HolsterEventRegs.ForEach(
-										[&evt](const EventRegistration<NullParameters>& reg) {
-											SendPapyrusEvent2<SInt32, UInt32>(reg.handle, reg.scriptName, HolsterEventName, evt, gCurHolster);
-										}
-									);
-								}
+								Offsets::DrawWeaponMagicHands(*g_player, false);
 								fistsPressed = false;
 							}
 						}
@@ -2295,9 +2275,19 @@ namespace Holsters {
 				}
 				NiNode* weap = WeaponRegisteredObjects[handle]->WeapMesh;
 				if (weap) {
-					weap->flags |= 0x1;
-					weap->m_localTransform.scale = 0;
-					WeaponRegisteredObjects[handle]->wbone->RemoveChild(weap);
+						weap->flags |= 0x1;
+						weap->m_localTransform.scale = 0;
+						NiNode* pNode = nullptr;
+						gInPowerArmor ? pNode = getChildNode(PAWeaponBones[handle].c_str(), (*g_player)->unkF0->rootNode) : pNode = getChildNode(WeaponBones[handle].c_str(), (*g_player)->unkF0->rootNode);
+						if (pNode != nullptr) {
+							NiNode* wTBD = getChildNode(HolsterNames[handle].c_str(), (*g_player)->unkF0->rootNode);
+							if (wTBD != nullptr) {
+								_MESSAGE("REMOVING WEAPON");
+								pNode->RemoveChild(wTBD);
+								pNode = nullptr;
+								_MESSAGE("WEAPON REMOVED");
+							}
+						}
 				}
 				delete WeaponRegisteredObjects[handle];
 				WeaponRegisteredObjects.erase(handle);
@@ -2307,8 +2297,8 @@ namespace Holsters {
 				if (*g_player) {
 					if ((*g_player)->unkF0) {
 						if ((*g_player)->unkF0->rootNode) {
-							std::string artName = "HolsterArt" + std::to_string(handle);
-							NiNode* artToRemove = getChildNode(artName.c_str(), (*g_player)->unkF0->rootNode); //Remove any Holster Art applied this slot
+							//std::string artName = "HolsterArt" + std::to_string(handle);
+							NiNode* artToRemove = getChildNode(hArt[handle], (*g_player)->unkF0->rootNode); //Remove any Holster Art applied this slot
 							//NiNode* artToRemove = WeaponRegisteredObjects[handle]->ArtMesh;
 							if (artToRemove) {
 								//_MESSAGE("Found Art");
@@ -2449,27 +2439,11 @@ namespace Holsters {
 	// Papyrus}
 
 	void SetPointingHand() {
-		SInt32 evt;
-		gIsRightHanded ? evt = HolsterEvent_LPointing : evt = HolsterEvent_RPointing;
-		if (g_HolsterEventRegs.m_data.size() > 0) {
-			g_HolsterEventRegs.ForEach(
-				[&evt](const EventRegistration<NullParameters>& reg) {
-					SendPapyrusEvent2<SInt32, UInt32>(reg.handle, reg.scriptName, HolsterEventName, evt, gCurHolster);
-				}
-			);
-		}
+		setFingerPositionScalar((gIsRightHanded ? true : false), 0.0, 1.0, 0.0, 0.0, 0.0);
 	}
 
 	void RestorePointingHand() {
-		SInt32 evt;
-		gIsRightHanded ? evt = HolsterEvent_LHandRelease : evt = HolsterEvent_RHandRelease;
-		if (g_HolsterEventRegs.m_data.size() > 0) {
-			g_HolsterEventRegs.ForEach(
-				[&evt](const EventRegistration<NullParameters>& reg) {
-					SendPapyrusEvent2<SInt32, UInt32>(reg.handle, reg.scriptName, HolsterEventName, evt, gCurHolster);
-				}
-			);
-		}
+		restoreFingerPoseControl((gIsRightHanded ? true : false));
 	}
 
 	void playSwordSFX(int handle) {
@@ -2538,6 +2512,116 @@ namespace Holsters {
 	}
 }
 
+// ============================================================================
+// VirtualHolsters API Implementation 
+// 
+// Credit: With thanks to Asciimov.
+// ============================================================================
+
+class VirtualHolstersAPIImpl : public VirtualHolstersAPI
+{
+public:
+	static VirtualHolstersAPIImpl& GetSingleton()
+	{
+		static VirtualHolstersAPIImpl instance;
+		return instance;
+	}
+
+	std::uint32_t VH_CALL GetVersion() const override
+	{
+		return 1;
+	}
+
+	bool VH_CALL IsHandInHolsterZone(bool isLeft) const override
+	{
+		// Virtual Holsters currently only tracks "primary" hand (based on handedness)
+		// isHolsterIntersected is global - it's true if ANY hand is in a holster
+		// For now, we just return the global state
+		// TODO: If Virtual Holsters adds per-hand tracking, update this
+		return Holsters::isHolsterIntersected;
+	}
+
+	std::uint32_t VH_CALL GetCurrentHolster() const override
+	{
+		return gCurHolster;
+	}
+
+	bool VH_CALL IsHolsterFree(std::uint32_t holsterIndex) const override
+	{
+		if (holsterIndex < 1 || holsterIndex > 7) {
+			return false;
+		}
+		return (holsteredWeapNames[holsterIndex] == "Empty");
+	}
+
+	const char* VH_CALL GetHolsteredWeaponName(std::uint32_t holsterIndex) const override
+	{
+		if (holsterIndex < 1 || holsterIndex > 7) {
+			return "";
+		}
+		return holsteredWeapNames[holsterIndex].c_str();
+	}
+
+	bool VH_CALL IsWeaponAlreadyHolstered(const char* weaponName) const override
+	{
+		if (!weaponName || weaponName[0] == '\0') {
+			return false;
+		}
+		std::string name(weaponName);
+		for (int i = 1; i <= 7; i++) {
+			if (holsteredWeapNames[i] == name) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool VH_CALL GetHolsterPosition(std::uint32_t holsterIndex, float& outX, float& outY, float& outZ) const override
+	{
+		if (holsterIndex < 1 || holsterIndex > 7) {
+			return false;
+		}
+		auto it = Holsters::HolsterRegisteredObjects.find(holsterIndex);
+		if (it == Holsters::HolsterRegisteredObjects.end() || !it->second || !it->second->bone) {
+			return false;
+		}
+		// Calculate world position: bone world pos + rotated offset
+		NiPoint3 offset = it->second->bone->m_worldTransform.rot * it->second->offset;
+		NiPoint3 worldPos = it->second->bone->m_worldTransform.pos + offset;
+		outX = worldPos.x;
+		outY = worldPos.y;
+		outZ = worldPos.z;
+		return true;
+	}
+
+	float VH_CALL GetHolsterRadius(std::uint32_t holsterIndex) const override
+	{
+		if (holsterIndex < 1 || holsterIndex > 7) {
+			return 0.0f;
+		}
+		auto it = Holsters::HolsterRegisteredObjects.find(holsterIndex);
+		if (it == Holsters::HolsterRegisteredObjects.end() || !it->second) {
+			return 0.0f;
+		}
+		return it->second->radius;
+	}
+
+	bool VH_CALL IsInitialized() const override
+	{
+		// Check if bone tree is initialized (set false after MainLoop processes)
+		// and that holsters are registered
+		return !Holsters::initBoneTreeFlag && !Holsters::HolsterRegisteredObjects.empty();
+	}
+
+private:
+	VirtualHolstersAPIImpl() = default;
+};
+
+// Exported function - DO NOT CHANGE SIGNATURE
+extern "C" __declspec(dllexport) VirtualHolstersAPI * VH_CALL VHAPI_GetApi()
+{
+	return &VirtualHolstersAPIImpl::GetSingleton();
+}
 
 
 

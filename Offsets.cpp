@@ -36,4 +36,5 @@ namespace Offsets {
 	RelocAddr<_TESObjectREFR_UpdateAnimation> TESObjectREFR_UpdateAnimation(0x419b50);
 	RelocAddr<_ScopeExitFade> ScopeExitFade(0xbc85f0);
 	RelocAddr<_GetSitState> GetSitState(0x40e410);
+	RelocAddr <_DrawWeaponMagicHands> DrawWeaponMagicHands(0xdc4b40);
 }

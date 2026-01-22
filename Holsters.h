@@ -41,6 +41,9 @@ namespace Holsters {
 	extern int c_holsterButtonID;
 	extern bool c_VATSDisabled;
 	extern bool c_ActivationDisabled;
+	extern bool isHolsterIntersected;
+	extern bool initBoneTreeFlag;
+	extern std::map<UInt32, class MyHolster*> HolsterRegisteredObjects;
 	typedef bool(*_IsSneaking)(Actor* a_actor);
 	extern RelocAddr<_IsSneaking> IsSneaking;
 

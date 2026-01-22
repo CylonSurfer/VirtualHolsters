@@ -30,6 +30,13 @@ namespace Holsters {
 		return setting;
 	}
 
+	void setFingerPositionScalar(bool isLeft, float thumb, float index, float middle, float ring, float pinky) {
+		CallGlobalFunctionNoWait6<bool, float, float, float, float, float>("FRIK:FRIK", "setFingerPositionScalar", isLeft, thumb, index, middle, ring, pinky);
+	}
+
+	void restoreFingerPoseControl(bool isLeft) {
+		CallGlobalFunctionNoWait1<bool>("FRIK:FRIK", "restoreFingerPoseControl", isLeft);
+	}
 
 	void SetINIFloat(BSFixedString name, float value) {
 		CallGlobalFunctionNoWait2<BSFixedString, float>("Utility", "SetINIFloat", BSFixedString(name.c_str()), value);
@@ -49,7 +56,11 @@ namespace Holsters {
 	}
 
 	void UnequipItem(Actor* actor, TESForm* akItem, bool abPreventEquip, bool abSilent) {
-		CallGlobalFunctionNoWait4<Actor*, TESForm*, bool, bool>("Actor", "UnequipItem",actor, akItem, abPreventEquip, abSilent);
+		CallGlobalFunctionNoWait4<Actor*, TESForm*, bool, bool>("Actor", "UnequipItem", actor, akItem, abPreventEquip, abSilent);
+	}
+
+	void EquipItem(Actor* actor, TESForm* akItem, bool abPreventEquip, bool abSilent) {
+		CallGlobalFunctionNoWait4<Actor*, TESForm*, bool, bool>("Actor", "EquipItem",actor, akItem, abPreventEquip, abSilent);
 	}
 
 	bool getLeftHandedMode() {

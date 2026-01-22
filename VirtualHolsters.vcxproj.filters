@@ -116,6 +116,9 @@
     <ClInclude Include="InvSorting.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="VirtualHolstersAPI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="exports.def">

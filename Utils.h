@@ -10,12 +10,15 @@ namespace Holsters {
 	float vec3_len(NiPoint3 v1);
 	NiPoint3 vec3_norm(NiPoint3 v1);
 	void SetINIBool(BSFixedString name, bool value);
+	void setFingerPositionScalar(bool isLeft, float thumb, float index, float middle, float ring, float pinky);
+	void restoreFingerPoseControl(bool isLeft);
 	void SetINIFloat(BSFixedString name, float value);
 	float vec3_dot(NiPoint3 v1, NiPoint3 v2);
 	NiPoint3 vec3_cross(NiPoint3 v1, NiPoint3 v2);
 	float degrees_to_rads(float deg);
 	float rads_to_degrees(float deg);
 	void ShowMessagebox(std::string asText);
+	void EquipItem(Actor* actor, TESForm* akItem, bool abPreventEquip, bool abSilent);
 	typedef void(*_ActorEquipItem)(VirtualMachine* registry, UInt64 stackID, Actor* actor, TESForm* akItem, bool abPreventRemoval, bool abSilent);
 	extern RelocAddr <_ActorEquipItem> ActorEquipItem;
 	bool getLeftHandedMode();

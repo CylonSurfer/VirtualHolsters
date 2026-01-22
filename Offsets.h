@@ -136,4 +136,7 @@ namespace Offsets {
 
 	typedef int(*_GetSitState)(VirtualMachine* registry, UInt64 stackID, Actor* actor);
 	extern RelocAddr< _GetSitState> GetSitState;
+
+	typedef void (*_DrawWeaponMagicHands)(Actor* Actor, bool isTrue);
+	extern RelocAddr<_DrawWeaponMagicHands> DrawWeaponMagicHands;
 }

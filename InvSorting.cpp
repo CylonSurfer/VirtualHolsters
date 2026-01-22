@@ -198,8 +198,13 @@ namespace Holsters {
 					}
 					instance->object = INVSnapShot.Taggedform;
 					BGSEquipSlot* equipSlot = INVSnapShot.Taggedweapon->equipType.GetEquipSlot();
-					Offsets::EquipObject(*g_ActorEquipManager, *g_player, instance, INVSnapShot.TaggedWeapStackID, 1, equipSlot,
-						true, false, true, true, false);
+					std::string n = INVSnapShot.Taggedweapon->GetFullName();
+					//if (n == "BALISONG") {
+						//EquipItem((*g_player), INVSnapShot.Taggedform, false, true);
+					//}
+					//else {
+					Offsets::EquipObject(*g_ActorEquipManager, *g_player, instance, INVSnapShot.TaggedWeapStackID, 1, equipSlot, true, false, true, true, false);
+					//}
 					nDestoryWeapon(handle, false, true);
 					if (holsterINV) {
 					    holsterINV->inventoryLock.LockForReadAndWrite();
@@ -244,6 +249,23 @@ namespace Holsters {
 				CurrentETDD->name = "Empty";
 				holsteredWeapNames[handle] = "Empty";
 				CurrentETDD->nameLength = 5;
+				CurrentETDD->type = -2;
+			}
+			holsterINV->inventoryLock.Unlock();
+		}
+		return;
+	}
+
+	void addHolster(int handle, std::string weapName, TESForm* baseForm, TESObjectREFR* object, bool isMeleeW) {
+		nRegisterWeapon(weapName.c_str(), baseForm, object, handle, isMeleeW);
+		BGSInventoryList* holsterINV = HolsterContainers[handle]->inventoryList;
+		if (holsterINV) {
+			holsterINV->inventoryLock.LockForReadAndWrite();
+			ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
+			if (CurrentETDD) {
+				CurrentETDD->name = weapName.c_str();
+				holsteredWeapNames[handle] = weapName;
+				CurrentETDD->nameLength = std::strlen(weapName.c_str());;
 				CurrentETDD->type = -2;
 			}
 			holsterINV->inventoryLock.Unlock();
