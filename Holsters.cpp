@@ -2646,19 +2646,42 @@ public:
 			_MESSAGE("AddHolster: Invalid weapon name");
 			return false;
 		}
-		if (!baseForm || !weaponRef) {
-			_MESSAGE("AddHolster: Invalid baseForm or weaponRef");
+		if (!baseForm) {
+			_MESSAGE("AddHolster: Invalid baseForm");
 			return false;
 		}
 
 		// Cast void* back to game types
 		TESForm* form = reinterpret_cast<TESForm*>(baseForm);
-		TESObjectREFR* refr = reinterpret_cast<TESObjectREFR*>(weaponRef);
+		TESObjectREFR* refr = weaponRef ? reinterpret_cast<TESObjectREFR*>(weaponRef) : nullptr;
 
-		// Call new addHolster function
 		std::string nameStr(weaponName);
-		void addHolster(int handle, std::string weapName, TESForm * baseForm, TESObjectREFR * object, bool isMeleeW);
-		
+		int handle = static_cast<int>(holsterIndex);
+
+		// Check if refr has valid 3D for visual mesh cloning
+		NiNode* rootNode = refr ? refr->GetObjectRootNode() : nullptr;
+
+		if (rootNode) {
+			// Refr has valid 3D — full registration with visual mesh
+			Holsters::addHolster(handle, nameStr, form, refr, isMelee);
+		} else {
+			// Refr has no 3D (already picked up to inventory by caller)
+			// Register name/ETDD tracking so VH knows the holster is occupied
+			// Visual mesh will be created when player draws and re-holsters via VH
+			BGSInventoryList* holsterINV = HolsterContainers[handle] ? HolsterContainers[handle]->inventoryList : nullptr;
+			if (holsterINV) {
+				holsterINV->inventoryLock.LockForReadAndWrite();
+				ExtraTextDisplayData* CurrentETDD = Holsters::FindHolster(holsterINV);
+				if (CurrentETDD) {
+					CurrentETDD->name = nameStr.c_str();
+					holsteredWeapNames[handle] = nameStr;
+					CurrentETDD->nameLength = std::strlen(nameStr.c_str());
+					CurrentETDD->type = -2;
+				}
+				holsterINV->inventoryLock.Unlock();
+			}
+			_MESSAGE("AddHolster: No 3D on refr - registered name/ETDD only (no visual mesh)");
+		}
 
 		_MESSAGE("AddHolster: Added '%s' to holster %d (melee=%d)", weaponName, holsterIndex, isMelee);
 		return true;
