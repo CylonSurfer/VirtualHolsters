@@ -13,8 +13,9 @@
 #include "f4se/GameSettings.h"
 #include "f4se/GameMenus.h"
 #include "f4se/GameData.h"
+#include "f4se/GameExtraData.h"
 #include "NiCloneProcess.h"
-//#include "MiscStructs.h"
+#include "MiscStructs.h"
 #include "f4se/PapyrusArgs.h"
 #include "MiscStructs.h"
 
@@ -38,7 +39,26 @@ enum class ITEM_REMOVE_REASON
 	kStoreTeammate = 0x5
 };
 
+enum PositionType {
+	All = 0, Left = 1, Right = 2,
+	Vest = 3,
+	Head = 4,
+	Racket = 5,
+	HandL = 6, HandR = 7,
+	FootL = 8, FootR = 9,
+	ForearmL = 10, ForearmR = 11,
+	VestFront = 201, VestBack = 202,
+	GloveLeft = 203, GloveRight = 204,
+	Custom1 = 251, Custom2 = 252, Custom3 = 253, Custom4 = 254
+};
+
 namespace Offsets {
+
+	Setting* GetINIPrefSettingSafe(const char* name);
+
+	typedef NiAVObject* (*_cloneNode2)(NiAVObject* node);
+	extern RelocAddr<_cloneNode2> cloneNode2;
+
 	typedef bool(*_PlayIdleAction)(Actor* actor, void* action, TESObjectREFR target, VirtualMachine* vm, UInt32 stackId);
 	extern RelocAddr <_PlayIdleAction> PlayIdleAction;
 
@@ -128,15 +148,46 @@ namespace Offsets {
 	typedef ExtraDataList*(*_CopyExtraDataList)(ExtraDataList* source);
 	extern RelocAddr<_CopyExtraDataList> CopyExtraDataList;
 
-	typedef void(*_TESObjectREFR_UpdateAnimation)(TESObjectREFR* obj, float a_delta);
-	extern RelocAddr< _TESObjectREFR_UpdateAnimation> TESObjectREFR_UpdateAnimation;
-
-	typedef void(*_ScopeExitFade)();
-	extern RelocAddr< _ScopeExitFade> ScopeExitFade;
-
 	typedef int(*_GetSitState)(VirtualMachine* registry, UInt64 stackID, Actor* actor);
 	extern RelocAddr< _GetSitState> GetSitState;
 
 	typedef void (*_DrawWeaponMagicHands)(Actor* Actor, bool isTrue);
 	extern RelocAddr<_DrawWeaponMagicHands> DrawWeaponMagicHands;
+
+	typedef void (*_moveToRef)(TESObjectREFR* refr, TESObjectREFR* akTarget, float offsetX, float offsetY, float offsetZ);
+	extern RelocAddr<_moveToRef> moveToRef;
+
+	typedef void (*_ActivateRef)(TESObjectREFR* refr1, TESObjectREFR* refr2);
+	extern RelocAddr<_ActivateRef> ActivateRef;
+
+	typedef bool(__fastcall* _ActivateRef2)(
+		TESObjectREFR* a_target,       // RCX (param_1 / this)
+		TESObjectREFR* a_activator,    // RDX (param_5_00)
+		TESBoundObject* a_boundObj,    // R8  (param_6_00) -> Use nullptr for furniture
+		int32_t         a_count,       // R9  (param_4_00) -> Use 1
+		bool            a_force,       // Stack param_5     -> Use true to bypass physics checks
+		bool            a_defaultProc, // Stack param_6     -> Use true to trigger sitting code
+		bool            a_noEVP        // Stack param_7     -> Use false
+		);
+
+	// 2. Declare the address holder using your framework's relocation model
+	extern RelocAddr<_ActivateRef2> ActivateRef2;
+
+	//typedef void (*_ProvidebHapticFeedBack)(PositionType position, int index, int intensity, int durationMillis);
+	//extern RelocAddr<_ProvidebHapticFeedBack> ProvidebHapticFeedBack;
+
+	typedef void (*_ProvidebHapticFeedBack)(PositionType position, int index, int intensity, int durationMillis);
+	typedef void (*_RegFeedBackFile)(const char* key, const char* tactFileStr);
+	typedef void (*_PlayFeedBackFile)(const char* key);
+
+	typedef void (*_DisableRef)(TESObjectREFR* refr);
+	extern RelocAddr<_DisableRef> DisableRef;
+
+	// 2. Declare the RelocAddr so other files can see it
+
+	typedef void (*_DropObject)(PlayerCharacter* player, UInt32* outHandle, void* itemInstance, void* droppedItems, UInt32 count, NiPoint3* pos, NiPoint3* rot);
+	extern RelocAddr<_DropObject> DropObject;
+
+
+
 }

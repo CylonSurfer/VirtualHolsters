@@ -1,51 +1,34 @@
 #include "InvSorting.h"
+#include "RockFunctionHelpers.h"
+
 
 namespace Holsters {
 	RelocAddr<std::uint64_t*> g_ActorEquipManager(0x5a38bf8);
 	RelocAddr<_ActorEquipItem> ActorEquipItem(0x140CD10);
-	struct InventorySnapshot {
-		bool isWeapEquipped = false;
-		bool TaggedWeapFound = false;
-		int TaggedWeapStackID = -1;
-		int EquippedWeapStackID = -1;
-		BGSInventoryItem TaggedWeaponInvItem{};
-		BGSInventoryItem EquippedWeaponInvItem{};
-		BGSInventoryItem HolsterInvItem{};
-		TESForm* Taggedform = nullptr;
-		TESForm* Equippedform = nullptr;
-		TESObjectWEAP* Taggedweapon = nullptr;
-		TESObjectWEAP* Equippedweapon = nullptr;
-		ExtraTextDisplayData* TaggedweapETDD = nullptr;
-		ExtraTextDisplayData* EquippedweapETDD = nullptr;	
-		TBO_InstanceData* TaggedweapTBOID = nullptr;
-		TBO_InstanceData* EquippedweapTBOID = nullptr;
-		UInt16 EquippedNameSize = 0;
-		std::string EquippedFallbackName = "null";
-		std::string TaggedFallbackName = "null";
-	};
 
 	void WeapCheck(int i) {
 		std::string holsterName;
+		if (i < 1 || i > 7 || !HolsterContainers[i]) return;
 		BGSInventoryList* holsterINV = HolsterContainers[i]->inventoryList;
 		BGSInventoryList* PlayerINV = (*g_player)->inventoryList;
 		ExtraTextDisplayData* Currentholster = nullptr;
 		if (holsterINV) {
-			holsterINV->inventoryLock.LockForReadAndWrite();
+			//holsterINV->inventoryLock.LockForReadAndWrite();
 			ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
 			if (CurrentETDD) {
 				holsterName = CurrentETDD->name;
 				Currentholster = CurrentETDD;
 			}
-			holsterINV->inventoryLock.Unlock();
+			//holsterINV->inventoryLock.Unlock();
 		}
 		if (PlayerINV && holsterINV) {
-			PlayerINV->inventoryLock.LockForRead();
+			//PlayerINV->inventoryLock.LockForRead();
 			InventorySnapshot INVSnapShot = GetINVSnapShot(i, PlayerINV, holsterName);
 			if (holsterName != "Empty") {
 				if (INVSnapShot.Taggedform == nullptr) {    //unable to find holstered weapon in players inventory - destroy holster
 					nDestoryWeapon(i, true, false);
 					if (holsterINV) {
-						holsterINV->inventoryLock.LockForReadAndWrite();
+						//holsterINV->inventoryLock.LockForReadAndWrite();
 						ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
 						if (CurrentETDD) {
 							CurrentETDD->name = "Empty";
@@ -53,7 +36,7 @@ namespace Holsters {
 							CurrentETDD->nameLength = 5;
 							CurrentETDD->type = -2;
 						}
-						holsterINV->inventoryLock.Unlock();
+						//holsterINV->inventoryLock.Unlock();
 					}
 				}
 				else if ((*g_player)->actorState.IsWeaponDrawn() && INVSnapShot.isWeapEquipped) {
@@ -67,7 +50,7 @@ namespace Holsters {
 					if (drawnname == holsteredWeapNames[i]) {   // drawn weapon matches a holstered weapon - destroy holster
 						nDestoryWeapon(i, true, false);
 						if (holsterINV) {
-							holsterINV->inventoryLock.LockForReadAndWrite();
+							//holsterINV->inventoryLock.LockForReadAndWrite();
 							ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
 							if (CurrentETDD) {
 								CurrentETDD->name = "Empty";
@@ -75,12 +58,12 @@ namespace Holsters {
 								CurrentETDD->nameLength = 5;
 								CurrentETDD->type = -2;
 							}
-							holsterINV->inventoryLock.Unlock();
+							//holsterINV->inventoryLock.Unlock();
 						}
 					}
 				}
 			}
-			PlayerINV->inventoryLock.Unlock();
+			//PlayerINV->inventoryLock.Unlock();
 			return;
 		}
 		return;
@@ -90,21 +73,22 @@ namespace Holsters {
 		ExtraTextDisplayData* swapETDD = nullptr;
 		ExtraTextDisplayData* Currentholster = nullptr;
 		std::string holsterName;
+		if (handle < 1 || handle > 7 || !HolsterContainers[handle]) return;
 		BGSInventoryList* holsterINV = HolsterContainers[handle]->inventoryList;
 		BGSInventoryList* playerINV = (*g_player)->inventoryList;
 		if (holsterINV) {
-			holsterINV->inventoryLock.LockForReadAndWrite();
+			//holsterINV->inventoryLock.LockForReadAndWrite();
 			ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
 			if (CurrentETDD) {
 				holsterName = CurrentETDD->name;
 			}
-			holsterINV->inventoryLock.Unlock();
+			//holsterINV->inventoryLock.Unlock();
 		}
 		else {
 			return; // No point in continuing - no holster inventory found.
 		}
 		if (playerINV && holsterINV) {
-			playerINV->inventoryLock.LockForRead();
+			//playerINV->inventoryLock.LockForRead();
 			InventorySnapshot INVSnapShot = GetINVSnapShot(handle, playerINV, holsterName);
 			bool isWeapEquipped = false;
 			if ((*g_player)->actorState.IsWeaponDrawn()) {
@@ -120,7 +104,7 @@ namespace Holsters {
 			if (!isWeapEquipped && !taggedWeapFound) {  //No Weapon Equipped & No Tagged Weapon Found - If Holster Name wasnt empty remove the holster and fix its name.
 				nDestoryWeapon(handle, true, false);
 				if (holsterINV) {
-					holsterINV->inventoryLock.LockForReadAndWrite();
+					//holsterINV->inventoryLock.LockForReadAndWrite();
 					ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
 					if (CurrentETDD) {
 						CurrentETDD->name = "Empty";
@@ -128,9 +112,9 @@ namespace Holsters {
 						CurrentETDD->nameLength = 5;
 						CurrentETDD->type = -2;
 					}
-					holsterINV->inventoryLock.Unlock();
+					//holsterINV->inventoryLock.Unlock();
 				}
-				playerINV->inventoryLock.Unlock();
+				//playerINV->inventoryLock.Unlock();
 				return;
 			}
 			else if (isWeapEquipped && !taggedWeapFound) { // Weapon Equipped & No Tagged Weapon Found for Holster - Weapon needs to be holstered.
@@ -144,7 +128,7 @@ namespace Holsters {
 					}
 					for (int i = 1; i < 8; i++) {     //check to see if this weapon is already holstered in another slot.
 						if (holsteredWeapNames[i] == weapName) {
-							playerINV->inventoryLock.Unlock();
+							//playerINV->inventoryLock.Unlock();
 							return;
 						}
 					}
@@ -164,7 +148,7 @@ namespace Holsters {
 					Offsets::UnEquipObject(*g_ActorEquipManager, *g_player, instance2, 1, nullptr, -1, false, true, true, false, 0);  //<----- works now
 					if (currentRefr) {
 						if (holsterINV) {
-							holsterINV->inventoryLock.LockForReadAndWrite();
+							//holsterINV->inventoryLock.LockForReadAndWrite();
 							ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
 							if (CurrentETDD) {
 								CurrentETDD->nameLength = INVSnapShot.EquippedNameSize;
@@ -172,22 +156,40 @@ namespace Holsters {
 								CurrentETDD->type = -2;
 								holsteredWeapNames[handle] = weapName;
 							}
-							holsterINV->inventoryLock.Unlock();
+							//holsterINV->inventoryLock.Unlock();
 						}
-						WaitforObject3D(INVSnapShot.Equippedform, INVSnapShot.Equippedweapon, currentRefr, HolsterContainers[handle], handle);
-						playerINV->inventoryLock.Unlock();
+						uintptr_t moduleBase = (uintptr_t)GetModuleHandleA("tactsuit_vr_plugin.dll");
+						if (moduleBase) {
+							std::string keys[8] = { "Holster01", "Holster01", "Holster02", "Holster03", "Holster04", "Holster05", "Holster06", "Holster07" };
+							//std::thread haptics(playbHapticsFile, keys[handle]);
+							//haptics.detach();
+							//playbHapticsFile(keys[handle]);
+							if (g_tactsuitInterface) {
+								//_MESSAGE(keys[handle].c_str());
+								g_tactsuitInterface->PlayHapticEffect(keys[handle], 0.0, 0.0, bHapticsHolsterStrength, false);
+							}
+
+							//gIsRightHanded ? vrHook->StartHaptics(2, 0.15, 1.0) : vrHook->StartHaptics(1, 0.15, 1.0);
+							std::thread haptics2(matchHapticsOnController);
+							haptics2.detach();
+						}
+						WaitforObject3D(INVSnapShot.Equippedform, INVSnapShot.Equippedweapon, currentRefr, HolsterContainers[handle], handle, 0);
+						//playerINV->inventoryLock.LockForReadAndWrite();
+						//INVSnapShot.TaggedWeaponInvItem.stack->count = INVSnapShot.TaggedWeaponInvItem.stack->count - 1;
+						//playerINV->inventoryLock.Unlock();
+						//playerINV->inventoryLock.Unlock();
 						return;
 					}
 					else {
-						playerINV->inventoryLock.Unlock();
+						//playerINV->inventoryLock.Unlock();
 						return;
 					}
 				}
 				else {
-					playerINV->inventoryLock.Unlock();
+					//playerINV->inventoryLock.Unlock();
 					return;
 				}
-				playerINV->inventoryLock.Unlock();
+				//playerINV->inventoryLock.Unlock();
 				return;
 			}
 			else if (!isWeapEquipped && taggedWeapFound) { // No Weapon Equipped & Tagged Weapon Found for Holster - Weapon needs to be drawn.
@@ -203,35 +205,91 @@ namespace Holsters {
 						//EquipItem((*g_player), INVSnapShot.Taggedform, false, true);
 					//}
 					//else {
-					Offsets::EquipObject(*g_ActorEquipManager, *g_player, instance, INVSnapShot.TaggedWeapStackID, 1, equipSlot, true, false, true, true, false);
-					//}
-					nDestoryWeapon(handle, false, true);
-					if (holsterINV) {
-					    holsterINV->inventoryLock.LockForReadAndWrite();
-					    ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
-					    if (CurrentETDD) {
-						    CurrentETDD->name = "Empty";
-						    holsteredWeapNames[handle] = "Empty";
-							CurrentETDD->nameLength = 5;
-							CurrentETDD->type = -2;
-					    }
-					    holsterINV->inventoryLock.Unlock();
+					if (Kabuto) {
+						if (Kabuto->IsHandHelmetZone()) {
+							return;
+						}
+						if (Kabuto->IsHoldingHelmetinPrimary()) {
+							return;
+						}
+						if (Kabuto->IsEquippingHelmet()) {
+							return;
+						}
 					}
-					playerINV->inventoryLock.Unlock();
+					UInt32 equipSlotID = equipSlot->formID;
+					if (g_rockRegistered && equipSlotID == 289452) {
+						BSFixedString offHandName = gIsRightHanded ? "RArm_Hand" : "LArm_Hand";
+						NiNode* HandNode = getChildNode(offHandName, (*g_player)->unkF0->rootNode);
+						if (HandNode) {
+							BSFlattenedBoneTree* rt = (BSFlattenedBoneTree*)(*g_player)->unkF0->rootNode->m_children.m_data[0]->GetAsNiNode();
+							NiPoint3 offset(5.0f, -2.0f, 0.0f);
+							offset = gIsRightHanded ? rt->transforms[boneTreeMap["RArm_Hand"]].world.rot * offset : rt->transforms[boneTreeMap["LArm_Hand"]].world.rot * offset;
+							offset = gIsRightHanded ? rt->transforms[boneTreeMap["RArm_Hand"]].world.pos + offset: rt->transforms[boneTreeMap["LArm_Hand"]].world.pos + offset;
+							
+							NiPoint3 spawnPos = offset;
+							NiPoint3 spawnRot = { 0.0f, 0.0f, 0.0f };
+							if (INVSnapShot.Taggedform) {
+								uint32_t outHandle = DropItemFromActor(*g_player, INVSnapShot.Taggedform, nullptr , 1, &spawnPos, nullptr);
+								UInt32 out = outHandle;
+								TESObjectREFR* droppedWorldRef = nullptr;
+								LookupREFRByHandle(&out, &droppedWorldRef);
+								RockGrabItem(gIsRightHanded ? false : true, droppedWorldRef);
+
+							}
+							//isWaitingForDrop3D = true;
+						}
+					}
+					else {
+						Offsets::EquipObject(*g_ActorEquipManager, *g_player, instance, INVSnapShot.TaggedWeapStackID, 1, equipSlot, true, false, true, true, false);
+					}
+					//}
+					uintptr_t moduleBase = (uintptr_t)GetModuleHandleA("tactsuit_vr_plugin.dll");
+					if (moduleBase) {
+						std::string keys[8] = { "Holster01", "UnHolster01", "UnHolster02", "UnHolster03", "UnHolster04", "UnHolster05", "UnHolster06", "UnHolster07" };
+						//std::thread haptics(playbHapticsFile, keys[handle]);
+						//haptics.detach();
+						//playbHapticsFile(keys[handle]);
+						if (g_tactsuitInterface) {
+							//_MESSAGE(keys[handle].c_str());
+							g_tactsuitInterface->PlayHapticEffect(keys[handle], 0.0, 0.0, bHapticsHolsterStrength, false);
+						}
+						//gIsRightHanded ? vrHook->StartHaptics(2, 0.15, 1.0) : vrHook->StartHaptics(1, 0.15, 1.0);
+						std::thread haptics2(matchHapticsOnController2);
+						haptics2.detach();
+					}
+					if (g_rockRegistered && equipSlotID == 289452) {
+						WeapCheck(gCurHolster);
+						return;
+					}
+					else {
+						nDestoryWeapon(handle, false, true);
+						if (holsterINV) {
+							//holsterINV->inventoryLock.LockForReadAndWrite();
+							ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
+							if (CurrentETDD) {
+								CurrentETDD->name = "Empty";
+								holsteredWeapNames[handle] = "Empty";
+								CurrentETDD->nameLength = 5;
+								CurrentETDD->type = -2;
+							}
+							//holsterINV->inventoryLock.Unlock();
+						}
+						//playerINV->inventoryLock.Unlock();
+						return;
+					}
+				}
+				else {
+					//playerINV->inventoryLock.Unlock();
 					return;
 				}
-				else { 
-					playerINV->inventoryLock.Unlock();
-					return;
-				}    
-				playerINV->inventoryLock.Unlock();
+				//playerINV->inventoryLock.Unlock();
 				return;
 			}
 			else { //Weapon Equipped & Tagged Weapon Found for Holster - Nothing to do, Holster is Full.  
-				playerINV->inventoryLock.Unlock();
+				//playerINV->inventoryLock.Unlock();
 				return;
 			}
-			playerINV->inventoryLock.Unlock();
+			//playerINV->inventoryLock.Unlock();
 			return;
 		}
 		else {
@@ -241,9 +299,10 @@ namespace Holsters {
 
 	void resetHolsterName(int handle) {
 		std::string holsterName;
+		if (handle < 1 || handle > 7 || !HolsterContainers[handle]) return;
 		BGSInventoryList* holsterINV = HolsterContainers[handle]->inventoryList;
 		if (holsterINV) {
-			holsterINV->inventoryLock.LockForReadAndWrite();
+			//holsterINV->inventoryLock.LockForReadAndWrite();
 			ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
 			if (CurrentETDD) {
 				CurrentETDD->name = "Empty";
@@ -251,121 +310,172 @@ namespace Holsters {
 				CurrentETDD->nameLength = 5;
 				CurrentETDD->type = -2;
 			}
-			holsterINV->inventoryLock.Unlock();
+			//holsterINV->inventoryLock.Unlock();
 		}
 		return;
 	}
 
-	void addHolster(int handle, std::string weapName, TESForm* baseForm, TESObjectREFR* object, bool isMeleeW) {
-		nRegisterWeapon(baseForm->GetFullName(), baseForm, object, handle, isMeleeW);
-		BGSInventoryList* holsterINV = HolsterContainers[handle]->inventoryList;
-		if (holsterINV) {
-			holsterINV->inventoryLock.LockForReadAndWrite();
-			ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
-			if (CurrentETDD) {
-				CurrentETDD->name = weapName.c_str();
-				holsteredWeapNames[handle] = weapName;
-				CurrentETDD->nameLength = std::strlen(weapName.c_str());;
-				CurrentETDD->type = -2;
+	void addHolster(int handle, TESObjectREFR* object) {
+		std::string ETTDName;
+		if (!object) {
+			_MESSAGE("API WARNING: NO OBJECT REF PASSED TO ADDHOLSTER FUNCTION - ABORT");
+			return;
+		}
+
+		else {
+			//_MESSAGE("ADDING WEAPON TO HOLSTER");
+			auto EDL = object->extraDataList;
+			if (EDL) {
+				ExtraTextDisplayData* currentETDD = DYNAMIC_CAST(EDL->GetByType(kExtraData_TextDisplayData), BSExtraData, ExtraTextDisplayData);
+				if (currentETDD) {
+					ETTDName = currentETDD->name;
+				}
+				else {
+					ETTDName = object->baseForm->GetFullName();
+				}
 			}
-			holsterINV->inventoryLock.Unlock();
+			for (int i = 1; i < 8; i++) {     //check to see if this weapon is already holstered in another slot.
+				if (holsteredWeapNames[i] == ETTDName) {
+					_MESSAGE("API WARNING: THIS WEAPON IS ALREADY HOLSTERED - ABORT");
+					return;
+				}
+			}
+			TESObjectWEAP* weapon = static_cast<TESObjectWEAP*>(object->baseForm);
+			UInt32 equipSlot = weapon->weapData.equipSlot->formID;
+			if (!g_rockRegistered) {
+				if (equipSlot == 289452) return;
+			}
+			UInt32 meleeKWFormId[2] = { 0x4A0A4, 0x4A0A45 };
+			bool isMelee = false;
+			for (int index = 0; index < 2; index++) {
+				for (UInt32 i = 0; i < weapon->keyword.numKeywords; i++)
+				{
+					if (weapon->keyword.keywords[i])
+					{
+						if (weapon->keyword.keywords[i]->formID == meleeKWFormId[index])
+						{
+							isMelee = true;
+						}
+					}
+				}
+			}
+			//std::string mes = "handle " + std::to_string(handle) + " ETTD: " + ETTDName;
+			//_MESSAGE(mes.c_str());
+			AddedViaAPI = true;
+			nRegisterWeapon(object->baseForm->GetFullName(), object->baseForm, object, handle, isMelee);
+			if (handle < 1 || handle > 7 || !HolsterContainers[handle]) return;
+			BGSInventoryList* holsterINV = HolsterContainers[handle]->inventoryList;
+			if (holsterINV) {
+				//holsterINV->inventoryLock.LockForReadAndWrite();
+				ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
+				if (CurrentETDD) {
+					CurrentETDD->name = ETTDName.c_str();
+					holsteredWeapNames[handle] = ETTDName;
+					CurrentETDD->nameLength = std::strlen(ETTDName.c_str());
+					CurrentETDD->type = -2;
+				}
+				//holsterINV->inventoryLock.Unlock();
+			}
 		}
 		return;
 	}
 
 	InventorySnapshot GetINVSnapShot(int handle, BGSInventoryList* inventory, std::string holstername) {
+
 		InventorySnapshot CurrentSnapShot;
-		for (size_t invPos = 0; invPos < inventory->items.count; invPos++) {
-			BGSInventoryItem item = inventory->items[invPos];
-			TESForm* form = item.form;
-			BGSInventoryItem::Stack* stack = item.stack;
-			if (form) {  //Only Visit FORMS 
-				if (form->formType == kFormType_WEAP) {  //Only Visit WEAPON Items
-					TESObjectWEAP* weapon = static_cast<TESObjectWEAP*>(form);
-					if (stack) {
-						int stackPos = 0;
-						stack->Visit([&](BGSInventoryItem::Stack* element) {  //Start of Sub Stacks For this Weapon
-							if (element) {
-								ExtraDataList* stackDataList = element->extraData;
-								if (stackDataList) {
-									ExtraInstanceData* currentEID = DYNAMIC_CAST(stackDataList->GetByType(kExtraData_InstanceData), BSExtraData, ExtraInstanceData);
-									ExtraTextDisplayData* currentETDD = DYNAMIC_CAST(stackDataList->GetByType(kExtraData_TextDisplayData), BSExtraData, ExtraTextDisplayData);
-									if (element->flags && element->kFlagEquipped && !CurrentSnapShot.isWeapEquipped) {
-										if (currentEID && currentETDD) {
-											CurrentSnapShot.isWeapEquipped = true;
-											CurrentSnapShot.EquippedWeaponInvItem = item;
-											CurrentSnapShot.Equippedform = form;
-											CurrentSnapShot.Equippedweapon = weapon;
-											CurrentSnapShot.EquippedweapETDD = currentETDD;
-											CurrentSnapShot.EquippedWeapStackID = stackPos;	
-											CurrentSnapShot.EquippedweapTBOID = GetTBO_InstanceDataFromInventoryItem(&item, stackPos);
-											CurrentSnapShot.EquippedNameSize = currentETDD->nameLength;
-										}
-										else { // No ETDD or EID - Use fallback.
-											bool isThrowable = true;
-											for (int slotIndex = 32; slotIndex < 44; slotIndex++) {
-												TESForm* equippedItem = (*g_player)->equipData->slots[slotIndex].item;
-												if (equippedItem && isThrowable) {
-													UInt32 equipSlot = weapon->weapData.equipSlot->formID;
-													if (equipSlot != 289452) { // ensure equipped weapon is not using 'Grenade' slot. After dropping items equipped throwables sometimes appear in slot index 41 as well as the main drawn weapon.
-														isThrowable = false;
-														break;
-													}
-												}
-											}
-											if (!isThrowable) {
-												std::string weapName = form->GetFullName();
+		if (inventory) {
+			for (size_t invPos = 0; invPos < inventory->items.count; invPos++) {
+				BGSInventoryItem item = inventory->items[invPos];
+				TESForm* form = item.form;
+				BGSInventoryItem::Stack* stack = item.stack;
+				if (form) {  //Only Visit FORMS 
+					if (form->formType == kFormType_WEAP) {  //Only Visit WEAPON Items
+						TESObjectWEAP* weapon = static_cast<TESObjectWEAP*>(form);
+						if (stack) {
+							int stackPos = 0;
+							stack->Visit([&](BGSInventoryItem::Stack* element) {  //Start of Sub Stacks For this Weapon
+								if (element) {
+									ExtraDataList* stackDataList = element->extraData;
+									if (stackDataList) {
+										ExtraInstanceData* currentEID = DYNAMIC_CAST(stackDataList->GetByType(kExtraData_InstanceData), BSExtraData, ExtraInstanceData);
+										ExtraTextDisplayData* currentETDD = DYNAMIC_CAST(stackDataList->GetByType(kExtraData_TextDisplayData), BSExtraData, ExtraTextDisplayData);
+										if (element->flags && element->kFlagEquipped && !CurrentSnapShot.isWeapEquipped) {
+											if (currentEID && currentETDD) {
 												CurrentSnapShot.isWeapEquipped = true;
 												CurrentSnapShot.EquippedWeaponInvItem = item;
 												CurrentSnapShot.Equippedform = form;
 												CurrentSnapShot.Equippedweapon = weapon;
-												CurrentSnapShot.EquippedweapETDD = nullptr;
+												CurrentSnapShot.EquippedweapETDD = currentETDD;
 												CurrentSnapShot.EquippedWeapStackID = stackPos;
-												CurrentSnapShot.EquippedweapTBOID = nullptr;
-												CurrentSnapShot.EquippedNameSize = std::strlen(weapName.c_str());
-												CurrentSnapShot.EquippedFallbackName = weapName;
+												CurrentSnapShot.EquippedweapTBOID = GetTBO_InstanceDataFromInventoryItem(&item, stackPos);
+												CurrentSnapShot.EquippedNameSize = currentETDD->nameLength;
+											}
+											else { // No ETDD or EID - Use fallback.
+												bool isThrowable = true;
+												for (int slotIndex = 32; slotIndex < 44; slotIndex++) {
+													TESForm* equippedItem = (*g_player)->equipData->slots[slotIndex].item;
+													if (equippedItem && isThrowable) {
+														UInt32 equipSlot = weapon->weapData.equipSlot->formID;
+														if (equipSlot != 289452) { // ensure equipped weapon is not using 'Grenade' slot. After dropping items equipped throwables sometimes appear in slot index 41 as well as the main drawn weapon.
+															isThrowable = false;
+															break;
+														}
+													}
+												}
+												if (!isThrowable) {
+													std::string weapName = form->GetFullName();
+													CurrentSnapShot.isWeapEquipped = true;
+													CurrentSnapShot.EquippedWeaponInvItem = item;
+													CurrentSnapShot.Equippedform = form;
+													CurrentSnapShot.Equippedweapon = weapon;
+													CurrentSnapShot.EquippedweapETDD = nullptr;
+													CurrentSnapShot.EquippedWeapStackID = stackPos;
+													CurrentSnapShot.EquippedweapTBOID = nullptr;
+													CurrentSnapShot.EquippedNameSize = std::strlen(weapName.c_str());
+													CurrentSnapShot.EquippedFallbackName = weapName;
+												}
 											}
 										}
-									}
-									if (currentEID && currentETDD) {
-										std::string weapName = currentETDD->name;
-										if (weapName == holstername) {
-											if (!CurrentSnapShot.TaggedWeapFound) {
-												CurrentSnapShot.TaggedWeaponInvItem = item;
-												CurrentSnapShot.TaggedWeapFound = true;
-												CurrentSnapShot.TaggedWeapStackID = stackPos;
-												CurrentSnapShot.Taggedform = form;
-												CurrentSnapShot.Taggedweapon = weapon;
-												CurrentSnapShot.TaggedweapETDD = currentETDD;	
-												CurrentSnapShot.TaggedweapTBOID = GetTBO_InstanceDataFromInventoryItem(&item, stackPos);
+										if (currentEID && currentETDD) {
+											std::string weapName = currentETDD->name;
+											if (weapName == holstername) {
+												if (!CurrentSnapShot.TaggedWeapFound) {
+													CurrentSnapShot.TaggedWeaponInvItem = item;
+													CurrentSnapShot.TaggedWeapFound = true;
+													CurrentSnapShot.TaggedWeapStackID = stackPos;
+													CurrentSnapShot.Taggedform = form;
+													CurrentSnapShot.Taggedweapon = weapon;
+													CurrentSnapShot.TaggedweapETDD = currentETDD;
+													CurrentSnapShot.TaggedweapTBOID = GetTBO_InstanceDataFromInventoryItem(&item, stackPos);
+												}
 											}
 										}
-									}
-									else {  // No ETDD or EID - Use fallback.
-										std::string weapName = form->GetFullName();
-										if (weapName == holstername) {
-											if (!CurrentSnapShot.TaggedWeapFound) {
-												CurrentSnapShot.TaggedWeapFound = true;
-												CurrentSnapShot.TaggedWeaponInvItem = item;
-												CurrentSnapShot.TaggedWeapStackID = stackPos;
-												CurrentSnapShot.Taggedform = form;
-												CurrentSnapShot.Taggedweapon = weapon;
-												CurrentSnapShot.TaggedweapETDD = nullptr;
-												CurrentSnapShot.TaggedweapTBOID = nullptr;
-												CurrentSnapShot.TaggedFallbackName = weapName;
+										else {  // No ETDD or EID - Use fallback.
+											std::string weapName = form->GetFullName();
+											if (weapName == holstername) {
+												if (!CurrentSnapShot.TaggedWeapFound) {
+													CurrentSnapShot.TaggedWeapFound = true;
+													CurrentSnapShot.TaggedWeaponInvItem = item;
+													CurrentSnapShot.TaggedWeapStackID = stackPos;
+													CurrentSnapShot.Taggedform = form;
+													CurrentSnapShot.Taggedweapon = weapon;
+													CurrentSnapShot.TaggedweapETDD = nullptr;
+													CurrentSnapShot.TaggedweapTBOID = nullptr;
+													CurrentSnapShot.TaggedFallbackName = weapName;
+												}
 											}
 										}
 									}
 								}
-							}
-							stackPos++;
-							return true;
-						}); // End of Sub Stacks
+								stackPos++;
+								return true;
+								}); // End of Sub Stacks
+						}
 					}
 				}
 			}
+			return CurrentSnapShot;
 		}
-		return CurrentSnapShot;
 	}
 
 	ExtraTextDisplayData* FindHolster(BGSInventoryList* inventory) {
@@ -375,16 +485,23 @@ namespace Holsters {
 			BGSInventoryItem::Stack* stack = item.stack;
 			if (form) {  //Only Visit FORMS 
 				if (form->formType == kFormType_WEAP) {
-					TESObjectWEAP* weapItem = static_cast<TESObjectWEAP*>(form);
+					//TESObjectWEAP* weapItem = static_cast<TESObjectWEAP*>(form);
 					if (stack) {
 						ExtraDataList* stackDataList = stack->extraData;
 						if (stackDataList) {
-							ExtraTextDisplayData* currentETDD = DYNAMIC_CAST(stackDataList->GetByType(kExtraData_TextDisplayData), BSExtraData, ExtraTextDisplayData);
-							if (currentETDD) {
-							    return currentETDD;
+							auto ExtraData = stackDataList->GetByType(kExtraData_TextDisplayData);
+							if (ExtraData) {
+								ExtraTextDisplayData* currentETDD = DYNAMIC_CAST(stackDataList->GetByType(kExtraData_TextDisplayData), BSExtraData, ExtraTextDisplayData);
+								if (currentETDD) {
+									return currentETDD;
+								}
+								else {
+									return nullptr;
+								}
 							}
 							else {
-								 return nullptr;
+								return nullptr;
+								_MESSAGE("ERROR EXTRA DATA NOT FOUND ON LOOKUP");
 							}
 						}
 					}
@@ -446,7 +563,7 @@ namespace Holsters {
 	void registerWeaponInMain(TESForm* weapForm, TESObjectWEAP* weapon, TESObjectREFR* object, int handle) {
 		BSFixedString FormName = weapForm->GetFullName();
 		TESObjectARMO* i = nullptr;
-		UInt32 meleeKWFormId[2] = {0x4A0A4, 0x4A0A45};
+		UInt32 meleeKWFormId[2] = { 0x4A0A4, 0x4A0A45 };
 		bool isMelee = false;
 		for (int index = 0; index < 2; index++) {
 			for (UInt32 i = 0; i < weapon->keyword.numKeywords; i++)
@@ -460,16 +577,19 @@ namespace Holsters {
 				}
 			}
 		}
-		nRegisterWeapon(FormName, weapForm,object,handle, isMelee);
+		nRegisterWeapon(FormName, weapForm, object, handle, isMelee);
 	}
 
 	void GameLoadInvSort() {
+		_MESSAGE("---- Holster Config:: Update Completed");
+		_MESSAGE("Game Event:: Game Load Completed");
 		bool isFirstRun = true;
 		BGSInventoryList* playerINV = (*g_player)->inventoryList;
 		for (int i = 1; i < 8; i++) {
+			if (i < 1 || i > 7 || !HolsterContainers[i]) return;
 			BGSInventoryList* holsterINV = HolsterContainers[i]->inventoryList;
 			if (holsterINV) { // Holster Inventory Located - Proceed As Normal.
-				holsterINV->inventoryLock.LockForReadAndWrite();
+				//holsterINV->inventoryLock.LockForReadAndWrite();
 				ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
 				if (CurrentETDD) {
 					std::string name = CurrentETDD->name;
@@ -483,7 +603,7 @@ namespace Holsters {
 					std::string mess = "-------- ETDD Link Failed For Holster0" + std::to_string(i);
 					_MESSAGE("------------ Holster Status: Fail - Something Went Wrong!");
 				}
-				holsterINV->inventoryLock.Unlock();
+				//holsterINV->inventoryLock.Unlock();
 				isFirstRun = false;
 			}
 			else {  // No Inventory List Found - This Signifies a Fist Run Scenario. Create VRH Template in Holsters Inventory.
@@ -516,7 +636,7 @@ namespace Holsters {
 						holsterINV = HolsterContainers[i]->inventoryList;
 						if (holsterINV) {
 							Offsets::DeleteRef(currentRefr);                                                                                                               //Delete ObjectRef from gameworld - no longer needed
-							holsterINV->inventoryLock.LockForReadAndWrite();
+							//holsterINV->inventoryLock.LockForReadAndWrite();
 							ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
 							if (CurrentETDD) {
 								std::string mess3 = "---------------- ETDD Link Established with Holster0" + std::to_string(i);
@@ -531,29 +651,50 @@ namespace Holsters {
 								_MESSAGE(mess5.c_str());
 
 							}
-							holsterINV->inventoryLock.Unlock();
+							//holsterINV->inventoryLock.Unlock();
 						}
 					}
 				}
 			}
 		}
+
 		if (isFirstRun) {
 			return;
 		}
-		for (int i = 1; i < 8; i++) {
+		settingUpHolsters = true;
+		/*for (int i = 1; i < 8; i++) {
 			if (playerINV) {
-				playerINV->inventoryLock.LockForReadAndWrite();
+				//playerINV->inventoryLock.LockForReadAndWrite();
 				InventorySnapshot INVSnapShot = GetINVSnapShot(i, playerINV, holsteredWeapNames[i]);
 				if (INVSnapShot.Taggedform && INVSnapShot.Taggedweapon) {
 					TESObjectREFR* currentRefr = createObjectFromInvItem(INVSnapShot.Taggedweapon, INVSnapShot.TaggedWeaponInvItem, INVSnapShot.TaggedWeapStackID);
 					if (currentRefr) {
-						WaitforObject3D(INVSnapShot.Taggedform, INVSnapShot.Taggedweapon, currentRefr, HolsterContainers[i], i);
+						//playerINV->inventoryLock.LockForReadAndWrite();
+						//INVSnapShot.TaggedWeaponInvItem.stack->count = INVSnapShot.TaggedWeaponInvItem.stack->count - 1;
+						//playerINV->inventoryLock.Unlock();
+						WaitforObject3D(INVSnapShot.Taggedform, INVSnapShot.Taggedweapon, currentRefr, HolsterContainers[i], i, 0);
 					}
 				}
-				playerINV->inventoryLock.Unlock();
+				//playerINV->inventoryLock.Unlock();
 			}
-		}
+		}*/
 		return;
+	}
+
+	void RemoveThrowableHolster(int holster) {
+		BGSInventoryList* holsterINV = HolsterContainers[holster]->inventoryList;
+		nDestoryWeapon(holster, false, true);
+		if (holsterINV) {
+			//holsterINV->inventoryLock.LockForReadAndWrite();
+			ExtraTextDisplayData* CurrentETDD = FindHolster(holsterINV);
+			if (CurrentETDD) {
+				CurrentETDD->name = "Empty";
+				holsteredWeapNames[holster] = "Empty";
+				CurrentETDD->nameLength = 5;
+				CurrentETDD->type = -2;
+			}
+			//holsterINV->inventoryLock.Unlock();
+		}
 	}
 
 	TESObjectREFR* createObjectFromInvItem(TESObjectWEAP* weapon, BGSInventoryItem item, int stackID) {
@@ -579,28 +720,28 @@ namespace Holsters {
 		}
 	}
 
-	void WaitforObject3D(TESForm* weapForm, TESObjectWEAP* weapon, TESObjectREFR* object, TESObjectREFR* container, int handle) {
-		auto loadedData = object->unkF0;
-		if (weapon == nullptr) {
+	void WaitforObject3D(TESForm* weapForm, TESObjectWEAP* weapon, TESObjectREFR* object, TESObjectREFR* container, int handle, int retryCount = 0) {
+		const int MAX_RETRIES = 100;      // ~5 seconds at 50ms per retry
+		const int RETRY_DELAY_MS = 50;
+		if (weapon == nullptr || object == nullptr) {
 			return;
 		}
-		if (loadedData == nullptr) {
-			std::thread t6(WaitforObject3D, weapForm, weapon, object, container, handle);
+		if (retryCount >= MAX_RETRIES) {
+			_MESSAGE("WaitforObject3D: Gave up waiting for 3D data on handle %d after %d retries", handle, retryCount);
+			return;
+		}
+
+		auto loadedData = object->unkF0;
+		if (loadedData == nullptr || loadedData->rootNode == nullptr) {
+			if (retryCount > 0) {
+				Sleep(RETRY_DELAY_MS);
+			}
+			std::thread t6(WaitforObject3D, weapForm, weapon, object, container, handle, retryCount + 1);
 			t6.detach();
 			return;
 		}
-		else {
-			if (loadedData->rootNode == nullptr) {
-				std::thread t6(WaitforObject3D, weapForm, weapon, object, container, handle);
-				t6.detach();
-				return;
-			}
-			else {
-				registerWeaponInMain(weapForm, weapon, object, handle);
-				Offsets::DeleteRef(object);
-				return;
-			}
-		}
+		registerWeaponInMain(weapForm, weapon, object, handle);
+		Offsets::DisableRef(object);
+		Offsets::DeleteRef(object);
 	}
 }
-

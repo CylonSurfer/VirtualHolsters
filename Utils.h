@@ -4,7 +4,11 @@
 #include "f4se/GameSettings.h"
 #include "matrix.h"
 
+
+
 namespace Holsters {
+	NiNode* CloneThisNode(NiNode* node);
+	void LogNodeChildren(NiNode* a_node, int a_depth);
 	struct InventoryState;
 	Setting* GetINISettingNative(const char* name);
 	float vec3_len(NiPoint3 v1);
@@ -26,6 +30,7 @@ namespace Holsters {
 	void CheckMenusTimer();
 	void FistsTimer(int time);
 	void infoTimer(int time);
+	void doublePressTimer();
 	void checkingloadingcompleted();
 	NiNode* getChildNode(const char* nodeName, NiNode* nde);
 	NiNode* get1stChildNode(const char* nodeName, NiNode* nde);
@@ -36,4 +41,20 @@ namespace Holsters {
 	bool matchSubString(const char* w1, const char* w2);
 	std::string FileNameCreation(int handle, UInt32 weaponformID);
 	TESForm* GetFormFromFile(UInt32 formID, const char* pluginName);
+	void gameLoadingTimer(int time);
+	void bHaptics(PositionType location, std::vector<int> index, std::vector<int> intensity, std::vector<int> duration);
+	void regbHapticsFile();
+	void playbHapticsFile(std::string key);
+	void matchHapticsOnController();
+	void matchHapticsOnController2();
+	TESObjectREFR* SpawnHolsterWeapon(PlayerCharacter* player, Holsters::BGSObjectInstance* instance, NiPoint3 pos);
+	uint32_t DropItemFromActor(
+		Actor* actor,
+		TESForm* baseForm,
+		TBO_InstanceData* instanceData,
+		int32_t count,
+		NiPoint3* pos,
+		NiPoint3* rot);
+
+	void removeHolsterTimer();
 }

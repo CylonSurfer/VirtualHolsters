@@ -162,8 +162,7 @@ public:
      * @param isMelee       true if this is a melee weapon
      * @return true if weapon was successfully added to holster
      */
-    virtual bool VH_CALL AddHolster(std::uint32_t holsterIndex, const char* weaponName,
-        void* baseForm, void* weaponRef, bool isMelee) = 0;
+    virtual bool VH_CALL AddHolster(std::uint32_t holsterIndex, void* weaponRef) = 0;
 
 };
 

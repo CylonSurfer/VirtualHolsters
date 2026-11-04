@@ -12,6 +12,9 @@
 #include "Holsters.h"
 #include "MenuChecker.h"
 
+
+
+
 void OnF4SEMessage(F4SEMessagingInterface::Message* msg)
 {
 	if (msg)
@@ -33,7 +36,7 @@ void OnF4SEMessage(F4SEMessagingInterface::Message* msg)
 extern "C" {
 	bool F4SEPlugin_Query(const F4SEInterface* a_f4se, PluginInfo* a_info)
 	{
-		Sleep(5000);
+		//Sleep(5000);
 		gLog.OpenRelative(CSIDL_MYDOCUMENTS, R"(\\My Games\\Fallout4VR\\F4SE\\VirtualHolsters.log)");
 		gLog.SetPrintLevel(IDebugLog::kLevel_DebugMessage);
 		gLog.SetLogLevel(IDebugLog::kLevel_DebugMessage);
@@ -49,7 +52,7 @@ extern "C" {
 			return false;
 		}
 
-		a_f4se->runtimeVersion;
+		//a_f4se->runtimeVersion;
 		if (a_f4se->runtimeVersion < RUNTIME_VR_VERSION_1_2_72)
 		{
 			_FATALERROR("Unsupported runtime version %s!\n", a_f4se->runtimeVersion);

@@ -348,3 +348,13 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+include/ROCK/Abi.h
+include/ROCK/Client.h
+include/ROCK/Core.h
+include/ROCK/Discovery.h
+include/ROCK/Grab.h
+include/ROCK/Weapon.h
+include/tactsuitinterface001.cpp
+include/tactsuitinterface001.h
+include/ROCKProviderApi.h
+FRIKApi.h

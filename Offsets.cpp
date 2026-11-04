@@ -1,6 +1,18 @@
 #include "Offsets.h"
+#include "f4se\GameReferences.h"
+#include "f4se/GameEvents.h"
 
 namespace Offsets {
+	RelocPtr<SettingCollectionList*> g_iniPrefSettings_Fixed(0x5BBEC18);
+	Setting* GetINIPrefSettingSafe(const char* name) {
+		SettingCollectionList** collectionPtr = g_iniPrefSettings_Fixed.GetPtr();
+		if (collectionPtr && *collectionPtr) {
+			return (*collectionPtr)->Get(name);
+		}
+		return nullptr;
+	}
+
+	RelocAddr<_cloneNode2> cloneNode2(0x1c13f10);
 	RelocAddr<uint32_t> g_equipIndex(0x3706d2c);
 	RelocAddr<_GetEquippedWeapon> GetEquippedWeapon(0x140d790);
 	RelocAddr<_DropFirstObject> DropFirstObject(0x148a390);
@@ -33,8 +45,22 @@ namespace Offsets {
 	RelocAddr<_GetItemCount> GetItemCount(0x3e38c0);
 	RelocAddr<_RemoveAllItems> RemoveAllItems(0x3e69d0);	
 	RelocAddr<_CopyExtraDataList> CopyExtraDataList(0x082e50);
-	RelocAddr<_TESObjectREFR_UpdateAnimation> TESObjectREFR_UpdateAnimation(0x419b50);
-	RelocAddr<_ScopeExitFade> ScopeExitFade(0xbc85f0);
 	RelocAddr<_GetSitState> GetSitState(0x40e410);
 	RelocAddr <_DrawWeaponMagicHands> DrawWeaponMagicHands(0xdc4b40);
+	RelocAddr <_moveToRef> moveToRef(0x4e6e00);
+	RelocAddr <_ActivateRef> ActivateRef(0x32a200);
+	RelocAddr<_ActivateRef2> ActivateRef2(0x3f4a60);
+	RelocAddr <_DisableRef> DisableRef(0x3f63c0);
+	//RelocAddr <_ProvidebHapticFeedBack> ProvidebHapticFeedBack(0x47180);
+	struct BGSObjectInstance {
+		TESForm* item;         // The Base Form (e.g., TESObjectWEAP)
+		void* instanceData; // Attachment/Mod data (TESScript::ObjectInstance::InstanceData)
+	};
+
+	// Define the function pointer with the exact signature for the x64 stack
+	
+	RelocAddr<_DropObject> DropObject(0xf07e90);
+
+
+
 }

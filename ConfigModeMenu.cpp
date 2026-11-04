@@ -56,10 +56,11 @@ namespace Holsters {
 		// Load and Display Main UI
 		BSFixedString NameofMesh = "VRHHudMain";
 		NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-MAIN_TITLE.nif");
-		NiCloneProcess proc;
-		proc.unk18 = Offsets::cloneAddr1;
-		proc.unk48 = Offsets::cloneAddr2;
-		UIMain = Offsets::cloneNode(retNode, &proc);
+		//NiCloneProcess proc;
+		//proc.unk18 = Offsets::cloneAddr1;
+		//proc.unk48 = Offsets::cloneAddr2;
+		//UIMain = Offsets::cloneNode(retNode, &proc);
+		UIMain = CloneThisNode(retNode);
 		UIMain->m_name = BSFixedString(NameofMesh);
 		boneNode->AttachChild((NiAVObject*)UIMain, true);
 		gInPowerArmor ? UIMain->m_localTransform.scale = 0.85 : UIMain->m_localTransform.scale = 0.7;
@@ -72,14 +73,16 @@ namespace Holsters {
 			//_MESSAGE(tile.c_str());
 			BSFixedString UI_ITEMNAME = (nUI_Nodes[i]);
 			NiNode* retNode = loadNifFromFile(mUI_Nodes[i]);
-			NiNode* UIItem = Offsets::cloneNode(retNode, &proc);
+			NiNode* UIItem = CloneThisNode(retNode);
+			//NiNode* UIItem = Offsets::cloneNode(retNode, &proc);
 			UIItem->m_name = BSFixedString(UI_ITEMNAME);
 			UIMain->AttachChild((NiAVObject*)UIItem, true);
 			UIItem->flags &= 0xfffffffffffffffe;
 			niUI_Nodes[i] = UIItem;
 			BSFixedString UI_ITEMNAME2 = (nUI_Tiles[i]);
 			retNode = loadNifFromFile(mUI_Tiles[i]);
-			NiNode* UIItem2 = Offsets::cloneNode(retNode, &proc);
+			NiNode* UIItem2 = CloneThisNode(retNode);
+			//NiNode* UIItem2 = Offsets::cloneNode(retNode, &proc);
 			UIItem2->m_name = BSFixedString(UI_ITEMNAME2);
 			UIItem->AttachChild((NiAVObject*)UIItem2, true);
 			UIItem2->flags &= 0xfffffffffffffffe;
@@ -90,56 +93,58 @@ namespace Holsters {
 
 		// Add Current Holster UI Label
 		retNode = loadNifFromFile(mUI_Info_Holster[gCurHolster]);
-		UIHolsterLable = Offsets::cloneNode(retNode, &proc);
+		//UIHolsterLable = Offsets::cloneNode(retNode, &proc);
+		UIHolsterLable = CloneThisNode(retNode);
 		UIHolsterLable->m_name = BSFixedString("CurrentHolster");
 		UIMain->AttachChild((NiAVObject*)UIHolsterLable, true);
 		UIHolsterLable->flags &= 0xfffffffffffffffe;
 
 		// Add Current UI MODE Lable
 		retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_MODE02.nif");
-		UIModeLable = Offsets::cloneNode(retNode, &proc);
+		//UIModeLable = Offsets::cloneNode(retNode, &proc);
+		UIModeLable = CloneThisNode(retNode);
 		UIModeLable->m_name = BSFixedString("UI-INFO_MODE");
 		UIMain->AttachChild((NiAVObject*)UIModeLable, true);
 		UIModeLable->flags &= 0xfffffffffffffffe;
 
 		// Add SNEAK MODE Lable
 		gPlayerisSneaking ? retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_SNEAKON.nif") : retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_SNEAKOFF.nif");
-		gPlayerisSneaking ? UISneakOn = Offsets::cloneNode(retNode, &proc) : UISneakOff = Offsets::cloneNode(retNode, &proc);
+		gPlayerisSneaking ? UISneakOn = CloneThisNode(retNode) : UISneakOff = CloneThisNode(retNode);
 		gPlayerisSneaking ? UISneakOn->m_name = BSFixedString("UISneakOn") : UISneakOff->m_name = BSFixedString("UISneakOff");
 		gPlayerisSneaking ? UIMain->AttachChild((NiAVObject*)UISneakOn, true) : UIMain->AttachChild((NiAVObject*)UISneakOff, true);
 		gPlayerisSneaking ? UISneakOn->flags &= 0xfffffffffffffffe : UISneakOff->flags &= 0xfffffffffffffffe;
 
 		// Add PA MODE Lable
 		gInPowerArmor ? retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_PWRARMORON.nif") : retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_PWRARMOROFF.nif");
-		gInPowerArmor ? UIPwrArmorOn = Offsets::cloneNode(retNode, &proc) : UIPwrArmorOff = Offsets::cloneNode(retNode, &proc);
+		gInPowerArmor ? UIPwrArmorOn = CloneThisNode(retNode) : UIPwrArmorOff = CloneThisNode(retNode);
 		gInPowerArmor ? UIPwrArmorOn->m_name = BSFixedString("UIPwrArmorOn") : UIPwrArmorOff->m_name = BSFixedString("UIPwrArmorOff");
 		gInPowerArmor ? UIMain->AttachChild((NiAVObject*)UIPwrArmorOn, true) : UIMain->AttachChild((NiAVObject*)UIPwrArmorOff, true);
 		gInPowerArmor ? UIPwrArmorOn->flags &= 0xfffffffffffffffe : UIPwrArmorOff->flags &= 0xfffffffffffffffe;
 
 		// Add HAPTICS MODE STATUS
 		ghapticsEnabled ? retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_HAPTICSON.nif") : retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_HAPTICSOFF.nif");
-		ghapticsEnabled ? UIHapticsOn = Offsets::cloneNode(retNode, &proc) : UIHapticsOff = Offsets::cloneNode(retNode, &proc);
+		ghapticsEnabled ? UIHapticsOn = CloneThisNode(retNode) : UIHapticsOff = CloneThisNode(retNode);
 		ghapticsEnabled ? UIHapticsOn->m_name = BSFixedString("UIHapticsOn") : UIHapticsOff->m_name = BSFixedString("UIHapticsOff");
 		ghapticsEnabled ? UIMain->AttachChild((NiAVObject*)UIHapticsOn, true) : UIMain->AttachChild((NiAVObject*)UIHapticsOff, true);
 		ghapticsEnabled ? UIHapticsOn->flags &= 0xfffffffffffffffe : UIHapticsOff->flags &= 0xfffffffffffffffe;
 
 		// Add SPHERE MODE STATUS
 		gshowSpheres ? retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_SPHERESON.nif") : retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_SPHERESOFF.nif");
-		gshowSpheres ? UISpheresOn = Offsets::cloneNode(retNode, &proc) : UISpheresOff = Offsets::cloneNode(retNode, &proc);
+		gshowSpheres ? UISpheresOn = CloneThisNode(retNode) : UISpheresOff = CloneThisNode(retNode);
 		gshowSpheres ? UISpheresOn->m_name = BSFixedString("UISpheresOn") : UISpheresOff->m_name = BSFixedString("UISpheresOff");
 		gshowSpheres ? UIMain->AttachChild((NiAVObject*)UISpheresOn, true) : UIMain->AttachChild((NiAVObject*)UISpheresOff, true);
 		gshowSpheres ? UISpheresOn->flags &= 0xfffffffffffffffe : UISpheresOff->flags &= 0xfffffffffffffffe;
 
 		// Add WEAPON MODE STATUS
 		gShowWeapons ? retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_WEAPONSON.nif") : retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_WEAPONSOFF.nif");
-		gShowWeapons ? UIWeaponsOn = Offsets::cloneNode(retNode, &proc) : UIWeaponsOff = Offsets::cloneNode(retNode, &proc);
+		gShowWeapons ? UIWeaponsOn = CloneThisNode(retNode) : UIWeaponsOff = CloneThisNode(retNode);
 		gShowWeapons ? UIWeaponsOn->m_name = BSFixedString("UIWeaponsOn") : UIWeaponsOff->m_name = BSFixedString("UIWeaponsOff");
 		gShowWeapons ? UIMain->AttachChild((NiAVObject*)UIWeaponsOn, true) : UIMain->AttachChild((NiAVObject*)UIWeaponsOff, true);
 		gShowWeapons ? UIWeaponsOn->flags &= 0xfffffffffffffffe : UIWeaponsOff->flags &= 0xfffffffffffffffe;
 
 		// Add ACTIVATE MODE STATUS
 		c_ActivationDisabled ? retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_ACTIVATEON.nif") : retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_ACTIVATEOFF.nif");
-		c_ActivationDisabled ? UIActivateOn = Offsets::cloneNode(retNode, &proc) : UIActivateOff = Offsets::cloneNode(retNode, &proc);
+		c_ActivationDisabled ? UIActivateOn = CloneThisNode(retNode) : UIActivateOff = CloneThisNode(retNode);
 		c_ActivationDisabled ? UIActivateOn->m_name = BSFixedString("UIACTIVATEOn") : UIActivateOff->m_name = BSFixedString("UIACTIVATEOff");
 		c_ActivationDisabled ? UIMain->AttachChild((NiAVObject*)UIActivateOn, true) : UIMain->AttachChild((NiAVObject*)UIActivateOff, true);
 		c_ActivationDisabled ? UIActivateOn->flags &= 0xfffffffffffffffe : UIActivateOff->flags &= 0xfffffffffffffffe;
@@ -147,7 +152,7 @@ namespace Holsters {
 
 		// Add VATS MODE STATUS
 		c_VATSDisabled ? retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_VATSON.nif") : retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_VATSOFF.nif");
-		c_VATSDisabled ? UIVATSOn = Offsets::cloneNode(retNode, &proc) : UIVATSOff = Offsets::cloneNode(retNode, &proc);
+		c_VATSDisabled ? UIVATSOn = CloneThisNode(retNode) : UIVATSOff = CloneThisNode(retNode);
 		c_VATSDisabled ? UIVATSOn->m_name = BSFixedString("UIVATSOn") : UIVATSOff->m_name = BSFixedString("UIVATSOff");
 		c_VATSDisabled ? UIMain->AttachChild((NiAVObject*)UIVATSOn, true) : UIMain->AttachChild((NiAVObject*)UIVATSOff, true);
 		c_VATSDisabled ? UIVATSOn->flags &= 0xfffffffffffffffe : UIVATSOff->flags &= 0xfffffffffffffffe;
@@ -156,7 +161,7 @@ namespace Holsters {
 		// Add CURRENT BUTTON STATUS
 		for (int i = 0; i < 3; i++) {
 				retNode = loadNifFromFile(nUI_InfoNodes[i]);
-				niUIButton_Nodes[i] = Offsets::cloneNode(retNode, &proc);
+				niUIButton_Nodes[i] = CloneThisNode(retNode);
 				niUIButton_Nodes[i]->m_name = BSFixedString(mUI_InfoTiles[i]);
 				UIMain->AttachChild((NiAVObject*)niUIButton_Nodes[i], true);
 				niUIButton_Nodes[i]->flags &= 0xfffffffffffffffe;	       
@@ -225,8 +230,11 @@ namespace Holsters {
 		writeOffsetJson();
 		BSFixedString nodename;
 		NiNode* boneNode = nullptr;
+		if (UISaveMSG) {
+			UIMain->RemoveChild(UISaveMSG);
+		}
 		// Restore Arrays & Variables to nullptr
-		for (int i = 0; i <= 9; i++) {
+		for (int i = 0; i <= 11; i++) {
 			niUI_Nodes[i] = nullptr;
 			niUI_Tiles[i] = nullptr;
 			bUITilePressed[i] = false;
@@ -279,10 +287,10 @@ namespace Holsters {
 		boneNode->m_localTransform.scale = 1.0;
 		std::string hN = "Holster";
 		hN += std::to_string(gCurHolster);
-		char* c2 = new char[hN.size() + 1];
-		std::copy(hN.begin(), hN.end(), c2);
-		c2[hN.size()] = '\0';
-		boneNode = FindNode(c2);
+		//char* c2 = new char[hN.size() + 1];
+		//std::copy(hN.begin(), hN.end(), c2);
+		//c2[hN.size()] = '\0';
+		boneNode = FindNode(hN.c_str());
 		if (!boneNode) {
 			return;
 		}
@@ -297,7 +305,7 @@ namespace Holsters {
 			boneNode->m_parent->RemoveChild(boneNode);
 		}
 		primaryAttachNode = nullptr;
-		closeSelfieMode();
+		//closeSelfieMode();
 		retorecam();
 		RestorePointingHand();
 	}
@@ -338,10 +346,11 @@ namespace Holsters {
 				UIMain->RemoveChild(UIModeLable);
 			}
 			UIModeLable = nullptr;
-			NiCloneProcess proc;
-			proc.unk18 = Offsets::cloneAddr1;
-			proc.unk48 = Offsets::cloneAddr2;
-			UIModeLable = Offsets::cloneNode(retNode, &proc);
+			//NiCloneProcess proc;
+			//proc.unk18 = Offsets::cloneAddr1;
+			//proc.unk48 = Offsets::cloneAddr2;
+			//UIModeLable = Offsets::cloneNode(retNode, &proc);
+			UIModeLable = CloneThisNode(retNode);
 			UIModeLable->m_name = BSFixedString("UI-INFO_MODE");
 			if (UIMain != nullptr) {
 				UIMain->AttachChild((NiAVObject*)UIModeLable, true);
@@ -384,10 +393,11 @@ namespace Holsters {
 		}
 		nodename = "primaryUIAttachNode";
 		NiNode* retNode = loadNifFromFile(mUI_Info_Holster[gCurHolster]);
-		NiCloneProcess proc;
-		proc.unk18 = Offsets::cloneAddr1;
-		proc.unk48 = Offsets::cloneAddr2;
-		UIHolsterLable = Offsets::cloneNode(retNode, &proc);
+		//NiCloneProcess proc;
+		//proc.unk18 = Offsets::cloneAddr1;
+		//proc.unk48 = Offsets::cloneAddr2;
+		//UIHolsterLable = Offsets::cloneNode(retNode, &proc);
+		UIHolsterLable = CloneThisNode(retNode);
 		UIHolsterLable->m_name = BSFixedString("CurrentHolster");
 		UIMain->AttachChild((NiAVObject*)UIHolsterLable, true);
 		UIHolsterLable->flags &= 0xfffffffffffffffe;
@@ -406,9 +416,9 @@ namespace Holsters {
 	}
 
 	void updateSneakUI() {
-		NiCloneProcess proc;
-		proc.unk18 = Offsets::cloneAddr1;
-		proc.unk48 = Offsets::cloneAddr2;
+		//NiCloneProcess proc;
+		//proc.unk18 = Offsets::cloneAddr1;
+		//proc.unk48 = Offsets::cloneAddr2;
 		if (!gPlayerisSneaking) {
 			if (UISneakOn != nullptr) {
 				UISneakOn->flags |= 0x1;
@@ -420,7 +430,8 @@ namespace Holsters {
 			}
 			if (UISneakOff == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_SNEAKOFF.nif");
-				UISneakOff = Offsets::cloneNode(retNode, &proc);
+				//UISneakOff = Offsets::cloneNode(retNode, &proc);
+				UISneakOff = CloneThisNode(retNode);
 				UISneakOff->m_name = BSFixedString("UISneakOff");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UISneakOff, true);
@@ -440,8 +451,9 @@ namespace Holsters {
 			}
 			if (UISneakOn == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_SNEAKON.nif");
-				UISneakOn = Offsets::cloneNode(retNode, &proc);
-				UISneakOn->m_name = BSFixedString("UISneakOn");
+				//UISneakOn = Offsets::cloneNode(retNode, &proc);
+				UISneakOn = CloneThisNode(retNode);
+ 				UISneakOn->m_name = BSFixedString("UISneakOn");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UISneakOn, true);
 					UISneakOn->flags &= 0xfffffffffffffffe;
@@ -478,12 +490,17 @@ namespace Holsters {
 				}
 			}
 		}
+		if (bHideSaveMsg && UISaveMSG != nullptr) {
+			UISaveMSG->flags |= 0x1;
+			UISaveMSG->m_localTransform.scale = 0;
+			bHideSaveMsg = false;
+		}
 	}
 
 	void updatePAUI() {
-		NiCloneProcess proc;
-		proc.unk18 = Offsets::cloneAddr1;
-		proc.unk48 = Offsets::cloneAddr2;
+		//NiCloneProcess proc;
+		//proc.unk18 = Offsets::cloneAddr1;
+		//proc.unk48 = Offsets::cloneAddr2;
 		if (!gInPowerArmor) {
 			if (UIPwrArmorOn != nullptr) {
 				UIPwrArmorOn->flags |= 0x1;
@@ -495,7 +512,8 @@ namespace Holsters {
 			}
 			if (UIPwrArmorOff == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_PWRARMOROFF.nif");
-				UIPwrArmorOff = Offsets::cloneNode(retNode, &proc);
+				//UIPwrArmorOff = Offsets::cloneNode(retNode, &proc);
+				UIPwrArmorOff = CloneThisNode(retNode);
 				UIPwrArmorOff->m_name = BSFixedString("UIPwrArmorOff");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UIPwrArmorOff, true);
@@ -515,7 +533,8 @@ namespace Holsters {
 			}
 			if (UIPwrArmorOn == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_PWRARMORON.nif");
-				UIPwrArmorOn = Offsets::cloneNode(retNode, &proc);
+				//UIPwrArmorOn = Offsets::cloneNode(retNode, &proc);
+				UIPwrArmorOn = CloneThisNode(retNode);
 				UIPwrArmorOn->m_name = BSFixedString("UIPwrArmorOn");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UIPwrArmorOn, true);
@@ -527,9 +546,9 @@ namespace Holsters {
 	}
 
 	void updateUIInfo() {
-		NiCloneProcess proc;
-		proc.unk18 = Offsets::cloneAddr1;
-		proc.unk48 = Offsets::cloneAddr2;
+		//NiCloneProcess proc;
+		//proc.unk18 = Offsets::cloneAddr1;
+		//proc.unk48 = Offsets::cloneAddr2;
 		if (!ghapticsEnabled) {
 			if (UIHapticsOn != nullptr) {
 				UIHapticsOn->flags |= 0x1;
@@ -541,7 +560,8 @@ namespace Holsters {
 			}
 			if (UIHapticsOff == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_HAPTICSOFF.nif");
-				UIHapticsOff = Offsets::cloneNode(retNode, &proc);
+				//UIHapticsOff = Offsets::cloneNode(retNode, &proc);
+				UIHapticsOff = CloneThisNode(retNode);
 				UIHapticsOff->m_name = BSFixedString("UIHapticsOff");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UIHapticsOff, true);
@@ -561,7 +581,8 @@ namespace Holsters {
 			}
 			if (UIHapticsOn == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_HAPTICSON.nif");
-				UIHapticsOn = Offsets::cloneNode(retNode, &proc);
+				//UIHapticsOn = Offsets::cloneNode(retNode, &proc);
+				UIHapticsOn = CloneThisNode(retNode);
 				UIHapticsOn->m_name = BSFixedString("UIHapticsOn");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UIHapticsOn, true);
@@ -581,7 +602,8 @@ namespace Holsters {
 			}
 			if (UISpheresOff == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_SPHERESOFF.nif");
-				UISpheresOff = Offsets::cloneNode(retNode, &proc);
+				//UISpheresOff = Offsets::cloneNode(retNode, &proc);
+				UISpheresOff = CloneThisNode(retNode);
 				UISpheresOff->m_name = BSFixedString("UISpheresOff");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UISpheresOff, true);
@@ -601,7 +623,8 @@ namespace Holsters {
 			}
 			if (UISpheresOn == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_SPHERESON.nif");
-				UISpheresOn = Offsets::cloneNode(retNode, &proc);
+				//UISpheresOn = Offsets::cloneNode(retNode, &proc);
+				UISpheresOn = CloneThisNode(retNode);
 				UISpheresOn->m_name = BSFixedString("UISpheresOn");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UISpheresOn, true);
@@ -621,7 +644,8 @@ namespace Holsters {
 			}
 			if (UIWeaponsOff == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_WEAPONSOFF.nif");
-				UIWeaponsOff = Offsets::cloneNode(retNode, &proc);
+				//UIWeaponsOff = Offsets::cloneNode(retNode, &proc);
+				UIWeaponsOff = CloneThisNode(retNode);
 				UIWeaponsOff->m_name = BSFixedString("UIWeaponsOff");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UIWeaponsOff, true);
@@ -641,7 +665,8 @@ namespace Holsters {
 			}
 			if (UIWeaponsOn == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_WEAPONSON.nif");
-				UIWeaponsOn = Offsets::cloneNode(retNode, &proc);
+				//UIWeaponsOn = Offsets::cloneNode(retNode, &proc);
+				UIWeaponsOn = CloneThisNode(retNode);
 				UIWeaponsOn->m_name = BSFixedString("UIWeaponsOn");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UIWeaponsOn, true);
@@ -661,7 +686,8 @@ namespace Holsters {
 			}
 			if (UIActivateOff == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_ACTIVATEOFF.nif");
-				UIActivateOff = Offsets::cloneNode(retNode, &proc);
+				//UIActivateOff = Offsets::cloneNode(retNode, &proc);
+				UIActivateOff = CloneThisNode(retNode);
 				UIActivateOff->m_name = BSFixedString("UIACTIVATEOff");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UIActivateOff, true);
@@ -681,7 +707,8 @@ namespace Holsters {
 			}
 			if (UIActivateOn == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_ACTIVATEON.nif");
-				UIActivateOn = Offsets::cloneNode(retNode, &proc);
+				//UIActivateOn = Offsets::cloneNode(retNode, &proc);
+				UIActivateOn = CloneThisNode(retNode);
 				UIActivateOn->m_name = BSFixedString("UIACTIVATEOn");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UIActivateOn, true);
@@ -701,7 +728,8 @@ namespace Holsters {
 			}
 			if (UIVATSOff == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_VATSOFF.nif");
-				UIVATSOff = Offsets::cloneNode(retNode, &proc);
+				//UIVATSOff = Offsets::cloneNode(retNode, &proc);
+				UIVATSOff = CloneThisNode(retNode);
 				UIVATSOff->m_name = BSFixedString("UIVATSOff");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UIVATSOff, true);
@@ -721,7 +749,8 @@ namespace Holsters {
 			}
 			if (UIVATSOn == nullptr) {
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_VATSON.nif");
-				UIVATSOn = Offsets::cloneNode(retNode, &proc);
+				UIVATSOn = CloneThisNode(retNode);
+				//UIVATSOn = Offsets::cloneNode(retNode, &proc);
 				UIVATSOn->m_name = BSFixedString("UIVATSOn");
 				if (UIMain != nullptr) {
 					UIMain->AttachChild((NiAVObject*)UIVATSOn, true);
@@ -819,10 +848,11 @@ namespace Holsters {
 		saveconfig();
 		if (UISaveMSG == nullptr) {
 			NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-INFO_SAVEMESSAGE.nif");
-			NiCloneProcess proc;
-			proc.unk18 = Offsets::cloneAddr1;
-			proc.unk48 = Offsets::cloneAddr2;
-			UISaveMSG = Offsets::cloneNode(retNode, &proc);
+			//NiCloneProcess proc;
+			//proc.unk18 = Offsets::cloneAddr1;
+			//proc.unk48 = Offsets::cloneAddr2;
+			//UISaveMSG = Offsets::cloneNode(retNode, &proc);
+			UISaveMSG = CloneThisNode(retNode);
 			UISaveMSG->m_name = BSFixedString("UIINFOSAVEMESSAGE");
 			if (UIMain != nullptr) {
 				UIMain->AttachChild((NiAVObject*)UISaveMSG, true);
@@ -847,11 +877,12 @@ namespace Holsters {
 			if (!NodeToFind && UIMain) {
 				BSFixedString NameofMesh = "VRHHELPMain";
 				NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/UI-HELPSCREEN.nif");
-				NiCloneProcess proc;
+				//NiCloneProcess proc;
 				NiNode* HelpUI;
-				proc.unk18 = Offsets::cloneAddr1;
-				proc.unk48 = Offsets::cloneAddr2;
-				HelpUI = Offsets::cloneNode(retNode, &proc);
+				//proc.unk18 = Offsets::cloneAddr1;
+				//proc.unk48 = Offsets::cloneAddr2;
+				//HelpUI = Offsets::cloneNode(retNode, &proc);
+				HelpUI = CloneThisNode(retNode);
 				HelpUI->m_name = BSFixedString(NameofMesh);
 				primaryAttachNode->AttachChild((NiAVObject*)HelpUI, true);
 				gInPowerArmor ? HelpUI->m_localTransform.scale = 1.0 : HelpUI->m_localTransform.scale = 0.9;
@@ -877,9 +908,10 @@ namespace Holsters {
 
 	void UISaveMSGTimer() {
 		Sleep(1500);
-		if (UISaveMSG != nullptr) {
+		/*if (UISaveMSG != nullptr) {
 			UISaveMSG->flags |= 0x1;
 			UISaveMSG->m_localTransform.scale = 0;
-		}
+		}*/
+		bHideSaveMsg = true;
 	}
 }

@@ -17,11 +17,19 @@
 #include "f4se/NiNodes.h"
 #include "f4se/GameReferences.h"
 #include "f4se/BSCollision.h"
+#include "F4SE_common/BranchTrampoline.h"
+#include "RockFunctionHelpers.h"
+#include <chrono>
+
 
 PluginHandle g_pluginHandle = kPluginHandle_Invalid;
 F4SEPapyrusInterface* g_papyrus = NULL;
 F4SEMessagingInterface* g_messaging = NULL;
+tactsuitPluginApi::ITactsuitInterface001* g_tactsuitInterface = NULL;
 OpenVRHookManagerAPI* vrHook;
+KabutoAPI* Kabuto = NULL;
+rock::provider::RockProviderConsumerHandleV1 g_rockHandle{};
+bool g_rockRegistered = false;
 
 bool gPlayerisSneaking = false;
 bool gInPowerArmor = false;
@@ -29,10 +37,14 @@ bool _isTouchEnabled;
 bool ghapticsEnabled = false;
 bool gshowSpheres = false;
 bool gShowWeapons = false;
-bool fistsPressed = false;
-bool infoPressed = false;
+bool gConfigDoublePress = false;
+std::atomic<bool> fistsPressed = false;
+std::atomic<bool> infoPressed = false;
 bool saveloaded = false;
-bool MenuCheck = false;
+std::atomic<bool> MenuCheck = false;
+std::atomic<bool> GameLoadTimer = false;
+bool AddedViaAPI = false;
+bool bHideSaveMsg = false;
 int doublepress = 0;
 bool gIsRightHanded;
 std::map<std::string, int> boneTreeMap;
@@ -40,13 +52,21 @@ std::vector<std::string> boneTreeVec;
 std::string holsteredWeapNames[8] = { "Empty" ,"Empty", "Empty", "Empty", "Empty", "Empty", "Empty", "Empty" };
 TESObjectREFR* HolsterContainers[8] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 UInt32 gCurHolster;
+float bHapticsHolsterStrength = 1.0f;
+float bHapticsNoticeStrength = 1.0f;
 
 namespace Holsters {
 
+	bool handswitch = false;
+	bool equipswitch = false;
+	HeldWeapon heldWeapon = HeldWeapon::None;
+	EquippedWeapon equippedWeapon = EquippedWeapon::None;
+	HeldWeapon lastHeldWeapon = HeldWeapon::None;
+	EquippedWeapon lastEquippedWeapon = EquippedWeapon::None;
 	RelocAddr<_IsSneaking> IsSneaking(0x24d20);
 
-	typedef int(*_loadNif)(uint64_t path, uint64_t mem, uint64_t flags);
-	RelocAddr<_loadNif> loadNif(0x1d0dee0);
+	//typedef int(*_loadNif)(uint64_t path, uint64_t mem, uint64_t flags);
+	//RelocAddr<_loadNif> loadNif(0x1d0dee0);
 
 	typedef NiNode* (*_cloneNode)(NiNode* node, NiCloneProcess* obj);
 	RelocAddr<_cloneNode> cloneNode(0x1c13ff0);
@@ -65,7 +85,7 @@ namespace Holsters {
 	std::map<UInt32, MyWeapon*> WeaponRegisteredObjects;
 	UInt32 nextWeaponHandle;
 	UInt32 curDevice;
-
+	std::chrono::steady_clock::time_point g_RemoveHolTimer;
 	int c_holsterButtonID = vr::EVRButtonId::k_EButton_A;
 	int c_configButtonID = vr::EVRButtonId::k_EButton_SteamVR_Touchpad;
 	int c_configExitButtonID = vr::EVRButtonId::k_EButton_SteamVR_Trigger;
@@ -79,13 +99,14 @@ namespace Holsters {
 	bool c_VATSDisabled = false;
 	bool c_ActivationDisabled = false;
 	bool menuOpenSticky = false;
+	bool bHapticsFound = false;
 	int holsterMode = 0;
 	int weaponMode = 0;
 	int c_mode = 0;
 	int camDistancePA = 0;
 	int camDistance = 0;
 	int dist = 0;
-	
+	int iLoadPauseTime = 1500;
 	int holsterArtWorkPresets[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	int PAholsterArtWorkPresets[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	int PAholsterMaxValue[8];
@@ -93,7 +114,9 @@ namespace Holsters {
 	float pGrabDistance = 96.0;
 	float sGrabDistance = 96.0;
 	float grabMulti = 1.5000;
-	std::string HolsterBones[8] = { "nout", "HmdNode", "HmdNode", "LLeg_Thigh", "RLeg_Thigh", "SPINE1", "Chest", "Chest" };
+	float hapticTime = 0.05f;
+	float hapticIntensity = 0.5f;
+	std::string HolsterBones[8] = { "nout", "Chest", "Chest", "LLeg_Thigh", "RLeg_Thigh", "SPINE1", "Chest", "Chest" };
 	std::string HolsterNames[8] = { "nout", "LShoulderHolster", "RShoulderHolster", "LHipHolster", "RHipHolster", "LowerBackHolster", "LeftChestHolster", "RightChestHolster" };
 	std::string WeaponBones[8] = { "nout", "LArm_Collarbone", "RArm_Collarbone", "LLeg_Thigh", "RLeg_Thigh", "SPINE1", "Chest", "Chest" };
 	std::string PAWeaponBones[8] = { "nout", "Chest", "Chest", "LLeg_Thigh", "RLeg_Thigh", "SPINE1", "Chest", "Chest" };
@@ -112,7 +135,8 @@ namespace Holsters {
 	char* weaponRemovalStrings[5]{ "Mag", "ullet", "Cartridge", "Casing", "Object043:0" };
 	char* meleeRemovalStrings[2]{ "Blood", "blood" };
 	std::vector<char*> c_MeleeRemovalStrings{};
-	bool _isHolsterButtonPressed;
+	std::atomic<bool> _isHolsterButtonPressed;
+	std::atomic<bool> armRemoval = false;
 	bool _isConfigModeLShiftButtonPressed;
 	bool _isConfigModeRShiftButtonPressed;
 	bool _isConfigModeSaveButtonPressed;
@@ -129,9 +153,25 @@ namespace Holsters {
 	bool _selfieModeActive;
 	bool _camMovedBack;
 	bool _fistRun = true;
+	bool _isInScopeMenu = false;
 	bool gamesaveloaded = false;
 	bool artSwitched = false;
 	bool isInMasterMode = false;
+	bool settingUpHolsters = false;
+	bool Holster01Completed = false;
+	bool Holster02Completed = false;
+	bool Holster03Completed = false;
+	bool Holster04Completed = false;
+	bool Holster05Completed = false;
+	bool Holster06Completed = false;
+	bool Holster07Completed = false;
+	bool Holster01aCompleted = false;
+	bool Holster02aCompleted = false;
+	bool Holster03aCompleted = false;
+	bool Holster04aCompleted = false;
+	bool Holster05aCompleted = false;
+	bool Holster06aCompleted = false;
+	bool Holster07aCompleted = false;
 	float rAxisOffsetX;
 	float rAxisOffsetY;
 	float lAxisOffsetX;
@@ -144,7 +184,14 @@ namespace Holsters {
 	bool isHolsterIntersected = false;
 	bool _isConfigModeActive = false;
 	bool initBoneTreeFlag = true;
-
+	bool EquipHandisLeft = false;
+	InventorySnapshot INVSnapShot;
+	BGSInventoryList* playerINV = nullptr;
+	TESObjectREFR* currentRefr = nullptr;
+	bool isHolsterButtonPressed = false;
+	bool freshIntersectWhileHolding = false;
+	bool freshIntersectWhileNotHolding = false;
+	bool pauseMenuSticky = false;
 	// Main Functions
 
 	bool initBoneTree() {
@@ -173,6 +220,9 @@ namespace Holsters {
 			if (((*g_ui)->IsMenuOpen(menuName)) && (!_fistRun)) {
 				_fistRun = true;
 				_MESSAGE("Main Menu Detected - RESETTING TO FIRST RUN");
+				BGSInventoryList* playerINV = nullptr;
+				TESObjectREFR* currentRefr = nullptr;
+
 			}
 		}
 		if ((*g_player)->unkF0 && (*g_player)->unkF0->rootNode && (*g_player)->firstPersonSkeleton != nullptr) {
@@ -183,11 +233,228 @@ namespace Holsters {
 				initBoneTreeFlag = false;
 				PlayerLoaded();
 			}
+			if (GameLoadTimer) {
+				GameLoadTimer = false;
+				GameLoadInvSort();
+				playerINV = nullptr;
+			}
+			if (settingUpHolsters) {  //Restore all visible holsters on Save Load. 
+				if (!playerINV) {
+					playerINV = (*g_player)->inventoryList;
+					return;
+				}
+				if (playerINV) {
+					if (!Holster01Completed) {
+						if (!Holster01aCompleted) {
+							INVSnapShot = GetINVSnapShot(1, playerINV, holsteredWeapNames[1]);
+							if (INVSnapShot.Taggedform && INVSnapShot.Taggedweapon) {
+								currentRefr = createObjectFromInvItem(INVSnapShot.Taggedweapon, INVSnapShot.TaggedWeaponInvItem, INVSnapShot.TaggedWeapStackID);
+								Holster01aCompleted = true;
+								return;
+							}
+							else {
+								Holster01Completed = true;
+								return;
+							}
+						}
+						auto loadedData = currentRefr->unkF0;
+						if (loadedData == nullptr || loadedData->rootNode == nullptr) {
+							return;
+						}
+						registerWeaponInMain(currentRefr->baseForm, INVSnapShot.Taggedweapon, currentRefr, 1);
+						Offsets::DisableRef(currentRefr);
+						Offsets::DeleteRef(currentRefr);
+						Holster01Completed = true;
+						return;
+					}
+					if (!Holster02Completed) {
+						if (!Holster02aCompleted) {
+							INVSnapShot = GetINVSnapShot(2, playerINV, holsteredWeapNames[2]);
+							if (INVSnapShot.Taggedform && INVSnapShot.Taggedweapon) {
+								currentRefr = createObjectFromInvItem(INVSnapShot.Taggedweapon, INVSnapShot.TaggedWeaponInvItem, INVSnapShot.TaggedWeapStackID);
+								Holster02aCompleted = true;
+								return;
+							}
+							else {
+								Holster02Completed = true;
+								return;
+							}
+						}
+						auto loadedData = currentRefr->unkF0;
+						if (loadedData == nullptr || loadedData->rootNode == nullptr) {
+							return;
+						}
+						registerWeaponInMain(currentRefr->baseForm, INVSnapShot.Taggedweapon, currentRefr, 2);
+						Offsets::DisableRef(currentRefr);
+						Offsets::DeleteRef(currentRefr);
+						Holster02Completed = true;
+						return;
+					}
+					if (!Holster03Completed) {
+						if (!Holster03aCompleted) {
+							INVSnapShot = GetINVSnapShot(3, playerINV, holsteredWeapNames[3]);
+							if (INVSnapShot.Taggedform && INVSnapShot.Taggedweapon) {
+								currentRefr = createObjectFromInvItem(INVSnapShot.Taggedweapon, INVSnapShot.TaggedWeaponInvItem, INVSnapShot.TaggedWeapStackID);
+								Holster03aCompleted = true;
+								return;
+							}
+							else {
+								Holster03Completed = true;
+								return;
+							}
+						}
+						auto loadedData = currentRefr->unkF0;
+						if (loadedData == nullptr || loadedData->rootNode == nullptr) {
+							return;
+						}
+						registerWeaponInMain(currentRefr->baseForm, INVSnapShot.Taggedweapon, currentRefr, 3);
+						Offsets::DisableRef(currentRefr);
+						Offsets::DeleteRef(currentRefr);
+						Holster03Completed = true;
+						return;
+					}
+					if (!Holster04Completed) {
+						if (!Holster04aCompleted) {
+							INVSnapShot = GetINVSnapShot(4, playerINV, holsteredWeapNames[4]);
+							if (INVSnapShot.Taggedform && INVSnapShot.Taggedweapon) {
+								currentRefr = createObjectFromInvItem(INVSnapShot.Taggedweapon, INVSnapShot.TaggedWeaponInvItem, INVSnapShot.TaggedWeapStackID);
+								Holster04aCompleted = true;
+								return;
+							}
+							else {
+								Holster04Completed = true;
+								return;
+							}
+						}
+						auto loadedData = currentRefr->unkF0;
+						if (loadedData == nullptr || loadedData->rootNode == nullptr) {
+							return;
+						}
+						registerWeaponInMain(currentRefr->baseForm, INVSnapShot.Taggedweapon, currentRefr, 4);
+						Offsets::DisableRef(currentRefr);
+						Offsets::DeleteRef(currentRefr);
+						Holster04Completed = true;
+						return;
+					}
+					if (!Holster05Completed) {
+						if (!Holster05aCompleted) {
+							INVSnapShot = GetINVSnapShot(5, playerINV, holsteredWeapNames[5]);
+							if (INVSnapShot.Taggedform && INVSnapShot.Taggedweapon) {
+								currentRefr = createObjectFromInvItem(INVSnapShot.Taggedweapon, INVSnapShot.TaggedWeaponInvItem, INVSnapShot.TaggedWeapStackID);
+								Holster05aCompleted = true;
+								return;
+							}
+							else {
+								Holster05Completed = true;
+								return;
+							}
+						}
+						auto loadedData = currentRefr->unkF0;
+						if (loadedData == nullptr || loadedData->rootNode == nullptr) {
+							return;
+						}
+						registerWeaponInMain(currentRefr->baseForm, INVSnapShot.Taggedweapon, currentRefr, 5);
+						Offsets::DisableRef(currentRefr);
+						Offsets::DeleteRef(currentRefr);
+						Holster05Completed = true;
+						return;
+					}
+					if (!Holster06Completed) {
+						if (!Holster06aCompleted) {
+							INVSnapShot = GetINVSnapShot(6, playerINV, holsteredWeapNames[6]);
+							if (INVSnapShot.Taggedform && INVSnapShot.Taggedweapon) {
+								currentRefr = createObjectFromInvItem(INVSnapShot.Taggedweapon, INVSnapShot.TaggedWeaponInvItem, INVSnapShot.TaggedWeapStackID);
+								Holster06aCompleted = true;
+								return;
+							}
+							else {
+								Holster06Completed = true;
+								return;
+							}
+						}
+						auto loadedData = currentRefr->unkF0;
+						if (loadedData == nullptr || loadedData->rootNode == nullptr) {
+							return;
+						}
+						registerWeaponInMain(currentRefr->baseForm, INVSnapShot.Taggedweapon, currentRefr, 6);
+						Offsets::DisableRef(currentRefr);
+						Offsets::DeleteRef(currentRefr);
+						Holster06Completed = true;
+						return;
+					}
+					if (!Holster07Completed) {
+						if (!Holster07aCompleted) {
+							INVSnapShot = GetINVSnapShot(7, playerINV, holsteredWeapNames[7]);
+							if (INVSnapShot.Taggedform && INVSnapShot.Taggedweapon) {
+								currentRefr = createObjectFromInvItem(INVSnapShot.Taggedweapon, INVSnapShot.TaggedWeaponInvItem, INVSnapShot.TaggedWeapStackID);
+								Holster07aCompleted = true;
+							}
+							else {
+								Holster07Completed = true;
+								return;
+							}
+						}
+						auto loadedData = currentRefr->unkF0;
+						if (loadedData == nullptr || loadedData->rootNode == nullptr) {
+							return;
+						}
+						registerWeaponInMain(currentRefr->baseForm, INVSnapShot.Taggedweapon, currentRefr, 7);
+						Offsets::DisableRef(currentRefr);
+						Offsets::DeleteRef(currentRefr);
+						Holster07Completed = true;
+						return;
+					}
+					BGSInventoryList* playerINV = nullptr;
+					TESObjectREFR* currentRefr = nullptr;
+					settingUpHolsters = false;
+					Holster01Completed = false;
+					Holster02Completed = false;
+					Holster03Completed = false;
+					Holster04Completed = false;
+					Holster05Completed = false;
+					Holster06Completed = false;
+					Holster07Completed = false;
+					Holster01aCompleted = false;
+					Holster02aCompleted = false;
+					Holster03aCompleted = false;
+					Holster04aCompleted = false;
+					Holster05aCompleted = false;
+					Holster06aCompleted = false;
+				    Holster07aCompleted = false;
+				}
+			} 
 			detectHolsterSphere();
 			VRButtonsMain();
 			closeMenus();
 			handlePowerArmor();
 			playerIsSneaking();
+			auto now = std::chrono::steady_clock::now();
+			if (now >= g_RemoveHolTimer && armRemoval) {
+				armRemoval = false;
+				if (_isHolsterButtonPressed && isHolsterIntersected) {
+					RemoveThrowableHolster(gCurHolster);
+				}
+			}
+			if ((*g_ui)->IsMenuOpen("ScopeMenu")) {
+				if (!_isInScopeMenu) {
+					_isInScopeMenu = true;
+				}
+			}
+			else if (!(*g_ui)->IsMenuOpen("ScopeMenu")){
+				if (_isInScopeMenu) {
+					_isInScopeMenu = false;
+				}
+			}
+			BSFixedString pauseMenu = "PauseMenu";
+			if ((*g_ui)->IsMenuOpen(pauseMenu) && !pauseMenuSticky) {
+				pauseMenuSticky = true;
+			}
+			if (!(*g_ui)->IsMenuOpen(pauseMenu) && pauseMenuSticky) {
+				pauseMenuSticky = false;
+				Setting* set = Offsets::GetINIPrefSettingSafe("bLeftHandedMode:VR");
+				UInt8 isLeft = set->data.u8;
+				gIsRightHanded = !isLeft;
+			}
 			if (_isConfigModeActive) {
 				updateSneakUI();
 				updatePAUI();
@@ -264,6 +531,7 @@ namespace Holsters {
 	}
 
 	void checkfists() {
+		if (g_rockRegistered) return;
 		bool isWeaponDrawn = (*g_player)->actorState.IsWeaponDrawn();
 		if (isWeaponDrawn && !equipsticky) {
 			equipsticky = true;
@@ -271,6 +539,14 @@ namespace Holsters {
 			if (!currentWeap && !fistssticky) {
 				fistssticky = true;
 				setFingerPositionScalar(true, 0.0, 0.0, 0.0, 0.0, 0.0);
+			}
+		}
+		if (isWeaponDrawn && equipsticky) {
+			TESObjectWEAP* currentWeap = Offsets::GetEquippedWeapon((*g_gameVM)->m_virtualMachine, 0, *g_player, 0);
+			if (currentWeap && fistssticky) {
+				fistssticky = false;
+				equipsticky = false;
+				restoreFingerPoseControl(true);
 			}
 		}
 		else if (!isWeaponDrawn && equipsticky) {
@@ -307,7 +583,7 @@ namespace Holsters {
 	}
 
 	bool playerIsSneaking() {
-		bool isSneaking = IsSneaking(*g_player);
+		/*bool isSneaking = IsSneaking(*g_player);
 		if (isSneaking && !gPlayerisSneaking) {
 			gPlayerisSneaking = true;
 			sphereMoveSneak();
@@ -320,15 +596,27 @@ namespace Holsters {
 		}
 		else {
 			return playerIsSneaking;
+		}*/
+		bool isSneaking = IsSneaking(*g_player);
+		if (isSneaking && !gPlayerisSneaking) {
+			gPlayerisSneaking = true;
+			sphereMoveSneak();
 		}
+		else if (!isSneaking && gPlayerisSneaking) {
+			gPlayerisSneaking = false;
+			sphereMoveStand();
+		}
+		return gPlayerisSneaking;
+
 	}
 
 	void weaponsPAChange() {
 		destroyAllHolsterSpheres();
 		bool t = initBoneTree();
 		for (int i = 1; i < 8; i++) {
-			nDestoryWeapon(i, true, false);	
+			nDestoryWeapon(i, true, false); 
 		}
+		playerINV = nullptr;
 		GameLoadInvSort();
 		updateSpheresForPAEvent();
 	}
@@ -338,15 +626,23 @@ namespace Holsters {
 			VRHook::g_vrHook->setVRControllerState();
 			// Gameplay Controls 
 			if (!_isConfigModeActive) {
-				uint64_t dominantHand = (gIsRightHanded ? VRHook::g_vrHook->getControllerState(VRHook::VRSystem::TrackerType::Right).ulButtonPressed : VRHook::g_vrHook->getControllerState(VRHook::VRSystem::TrackerType::Left).ulButtonPressed);
+				uint64_t dominantHand = 0;
+				if (!g_rockRegistered) {
+					dominantHand = (gIsRightHanded ? VRHook::g_vrHook->getControllerState(VRHook::VRSystem::TrackerType::Right).ulButtonPressed : VRHook::g_vrHook->getControllerState(VRHook::VRSystem::TrackerType::Left).ulButtonPressed);
+				}
+				else {
+					dominantHand = (EquipHandisLeft ? VRHook::g_vrHook->getControllerState(VRHook::VRSystem::TrackerType::Left).ulButtonPressed : VRHook::g_vrHook->getControllerState(VRHook::VRSystem::TrackerType::Right).ulButtonPressed);
+				}
+				uint64_t dominantHandtouch = (EquipHandisLeft ? VRHook::g_vrHook->getControllerState(VRHook::VRSystem::TrackerType::Left).ulButtonTouched: VRHook::g_vrHook->getControllerState(VRHook::VRSystem::TrackerType::Right).ulButtonTouched);
 				const auto HolsterWButtonPressed = dominantHand & vr::ButtonMaskFromId((vr::EVRButtonId)c_holsterButtonID);
+				const auto HolsterWButtonTouched = dominantHandtouch & vr::ButtonMaskFromId((vr::EVRButtonId)c_holsterButtonID);
 				const auto ConfigButtonPressed = dominantHand & vr::ButtonMaskFromId((vr::EVRButtonId)c_configButtonID);
 				const auto EquipButtonPressed = dominantHand & vr::ButtonMaskFromId((vr::EVRButtonId)c_equipButtonID);
 				if (!EquipButtonPressed && _isEquipButtonPressed && !_isPipboyOpen) {
 					_isEquipButtonPressed = false;
 					if ((*g_player)->actorState.IsWeaponDrawn()) {
 						TESObjectWEAP* currentWeap = Offsets::GetEquippedWeapon((*g_gameVM)->m_virtualMachine, 0, *g_player, 0);
-						if (!currentWeap) {
+						if (!currentWeap && !g_rockRegistered) {
 							if (fistsPressed) {
 								Offsets::DrawWeaponMagicHands(*g_player, false);
 								fistsPressed = false;
@@ -354,34 +650,113 @@ namespace Holsters {
 						}
 					}
 				}
-				else if (EquipButtonPressed && !_isEquipButtonPressed && !_isPipboyOpen) {
+				else if (EquipButtonPressed && !_isEquipButtonPressed && !_isPipboyOpen && !g_rockRegistered) {
 					_isEquipButtonPressed = true;
 					std::thread t3(FistsTimer, 500);
 					t3.detach();
 					fistsPressed = true;
 				}
-
+				if (HolsterWButtonPressed) {
+					isHolsterButtonPressed = true;
+				}
+				else {
+					isHolsterButtonPressed = false;
+				}
 				if (HolsterWButtonPressed && !_isHolsterButtonPressed && isHolsterIntersected && !isGameStopped() && !_WeaponHolsterInProgress) {
 					_isHolsterButtonPressed = true;
-					WeapSort(gCurHolster);
+					if (freshIntersectWhileHolding) {
+						//_MESSAGE("REFUSING HOLSTER ACTION DUE TO ACTIVE BLOCK");
+						return;
+					}
+					if (freshIntersectWhileNotHolding) {
+						freshIntersectWhileNotHolding = false;
+					}
+					if (g_rockRegistered) {
+						TESObjectREFR* ref = RockGetHeld(EquipHandisLeft);
+						if (ref) {
+							//_MESSAGE("REFUSING HOLSTER ACTION DUE TO HELD ITEM");
+							return;
+						}
+						if ((*g_player)->actorState.IsWeaponDrawn()) {
+							if (isTwoHandingWeapon()) {
+								//_MESSAGE("REFUSING HOLSTER ACTION DUE TO TWO HANDING WEAPON");
+								return;
+							}
+							if (isPrimaryHandDetached()) {
+								//_MESSAGE("REFUSING HOLSTER ACTION DUE TO PRIMARY HAND DETACHED FROM WEAPON");
+							    return;
+							}
+						}
+					}
+					
+					if (_isInScopeMenu) {
+						return;
+					}
+					
+					auto now = std::chrono::steady_clock::now();
+					g_RemoveHolTimer = now + std::chrono::milliseconds(1500);
+					armRemoval = true;
+					WeapSort(gCurHolster); // <--- run Holster / UnHolster action.
 					if (c_ActivationDisabled) {
 						MenuCheck = true;
 						std::thread t2(CheckMenusTimer);
 						t2.detach();
 					}
+					if (g_rockRegistered) {
+
+					}
 				}
 				else if (!HolsterWButtonPressed) {
+					if (g_rockRegistered && isHolsterIntersected && !isGameStopped() && !_WeaponHolsterInProgress) {
+						if (!freshIntersectWhileNotHolding) {
+							TESObjectREFR* ref = nullptr;
+							if (heldWeapon == HeldWeapon::inRight) {
+								ref = RockGetHeld(false);
+								if (ref) {
+									//RockForceDropItem(false, ref);
+								}
+							}
+							else if (heldWeapon == HeldWeapon::inLeft) {
+								ref = RockGetHeld(true);
+								if (ref) {
+									//RockForceDropItem(true, ref);
+								}
+							}
+							if (ref) {
+								TESObjectWEAP* weapon = dynamic_cast<TESObjectWEAP*>(ref->baseForm);
+								if (weapon) {
+									//_MESSAGE("RUNNING ADD HOLSTER");
+									addHolster(gCurHolster, ref);
+								}
+							}
+						}
+						if (armRemoval) {
+							armRemoval = false;
+						}
+					}
+					freshIntersectWhileHolding = false;
 					_isHolsterButtonPressed = false;
 				}
-				if (ConfigButtonPressed && !_isConfigButtonPressed && isHolsterIntersected && !(*g_player)->actorState.IsWeaponDrawn()) {
+				if (ConfigButtonPressed && !_isConfigButtonPressed && isHolsterIntersected && !(*g_player)->actorState.IsWeaponDrawn() && !gConfigDoublePress) {
 					_isConfigButtonPressed = true;
 					BSFixedString pipboyMenu("PipboyMenu");
 					IMenu* menu = (*g_ui)->GetMenu(pipboyMenu);
+					if (!menu) {
+						std::thread dptimer(doublePressTimer);
+						dptimer.detach();
+					}
+				}
+				else if (ConfigButtonPressed && !_isConfigButtonPressed && isHolsterIntersected && !(*g_player)->actorState.IsWeaponDrawn() && gConfigDoublePress) {
+					_isConfigButtonPressed = true;
+					BSFixedString pipboyMenu("PipboyMenu");
+					IMenu* menu = (*g_ui)->GetMenu(pipboyMenu);
+					gConfigDoublePress = true;
 					if (!menu) {
 						setupConfigMode();
 						_isConfigModeActive = true;
 					}
 				}
+
 				else if (!ConfigButtonPressed) {
 					_isConfigButtonPressed = false;
 				}
@@ -400,7 +775,7 @@ namespace Holsters {
 					if (infoPressed && doublepress == 2) {
 						infoPressed = false;
 						doublepress = 0;
-						std::string mes = ("<br>Left Shoulder: " + holsteredWeapNames[1] + "</br>" + "<br>Right Shoulder: " + holsteredWeapNames[2] + "</br>" + "<br>Left Hip: " + holsteredWeapNames[3] + "</br>" + "<br>Right Hip: " + holsteredWeapNames[4] + "</br>" + "<br>Lower Back: " + holsteredWeapNames[5] + "</br>" + "<br>Left Chest: " + holsteredWeapNames[6] + "</br>"+ "<br>Right Chest: " + holsteredWeapNames[7] + "</br>");
+						std::string mes = ("<br>Left Shoulder: " + holsteredWeapNames[1] + "</br>" + "<br>Right Shoulder: " + holsteredWeapNames[2] + "</br>" + "<br>Left Hip: " + holsteredWeapNames[3] + "</br>" + "<br>Right Hip: " + holsteredWeapNames[4] + "</br>" + "<br>Lower Back: " + holsteredWeapNames[5] + "</br>" + "<br>Left Chest: " + holsteredWeapNames[6] + "</br>" + "<br>Right Chest: " + holsteredWeapNames[7] + "</br>");
 						ShowMessagebox(mes.c_str());
 						BSFixedString menuName("FavoritesMenu");
 						if ((*g_ui)->IsMenuOpen(menuName)) {
@@ -409,14 +784,8 @@ namespace Holsters {
 							}
 						}
 					}
-					
+
 				}
-
-
-
-
-
-
 			}
 			// ConfigMode Controls
 			if (_isConfigModeActive) {
@@ -622,6 +991,30 @@ namespace Holsters {
 			VRHook::g_vrHook->setVRControllerState();
 		}
 		loadConfigFiles();
+		uintptr_t moduleBase = (uintptr_t)GetModuleHandleA("tactsuit_vr_plugin.dll");
+		if (moduleBase) {
+			bHapticsFound = true;
+			//_MESSAGE("Tactsuit VR DLL Found: Enabling Compatibility");
+			//regbHapticsFile();
+			g_tactsuitInterface = tactsuitPluginApi::getTactsuitInterface001(g_pluginHandle, g_messaging);
+			if (g_tactsuitInterface)
+			{
+				_MESSAGE("Tactsuit VR Interface Enabled");
+			}
+			else
+			{
+				_MESSAGE("Tactsuit VR Interface Fail");
+			}
+		}
+		else {
+			bHapticsFound = false;
+		}
+		Kabuto = RequestKabutoAPI();
+		if (Kabuto) {
+			_MESSAGE("KabutoVR API V%s Registered", std::to_string(Kabuto->GetVersion()).c_str());
+		}
+
+		g_rockRegistered = Holsters::InitializeRock();
 		_fistRun = true;
 	}
 
@@ -670,10 +1063,12 @@ namespace Holsters {
 		_MESSAGE("---- Holster Container Links:: Setup Complete");
 		_MESSAGE("---- Holster Config:: Update");
 		//for (int i = 1; i < 8; i++) {
-			GameLoadInvSort();
+		//GameLoadInvSort();v
+		std::thread glt(gameLoadingTimer, iLoadPauseTime);
+		glt.detach();
 		//}
-		_MESSAGE("---- Holster Config:: Update Completed");
-		_MESSAGE("Game Event:: Game Load Completed");
+		//_MESSAGE("---- Holster Config:: Update Completed");
+		//_MESSAGE("Game Event:: Game Load Completed");
 	}
 
 	bool loadConfigFiles() {
@@ -692,13 +1087,16 @@ namespace Holsters {
 		//c_configChangeModeButton = (int)ini.GetLongValue("Button Config", "ModeSwitchButtonID", vr::EVRButtonId::k_EButton_ApplicationMenu);
 		c_configChangeHolButton = (int)ini.GetLongValue("Button Config", "CycleHolstersButtonID", vr::EVRButtonId::k_EButton_Grip);
 		c_selfieModeButtonID = (int)ini.GetLongValue("Button Config", "ToggleSelfieModeButtonID", vr::EVRButtonId::k_EButton_SteamVR_Touchpad);
+		iLoadPauseTime = (int)ini.GetLongValue("Main Options", "PauseDisplayOnLoad", 1500);
 		gshowSpheres = ini.GetBoolValue("Main Options", "DisplaySpheres", true);
 		c_ActivationDisabled = ini.GetBoolValue("Main Options", "bDisableActivation", false);
 		c_VATSDisabled = ini.GetBoolValue("Main Options", "bDisableVATS", false);
 		ghapticsEnabled = ini.GetBoolValue("Main Options", "EnableHaptics", true);
 		gShowWeapons = ini.GetBoolValue("Main Options", "DisplayWeapons", true);
-		gIsRightHanded = ini.GetBoolValue("Main Options", "isRightHanded", true);
+		//gIsRightHanded = ini.GetBoolValue("Main Options", "isRightHanded", true);
 		testclonefix = ini.GetBoolValue("Main Options", "bTestCloneFix", false);
+		hapticIntensity = (float)ini.GetDoubleValue("Main Options", "hapticIntensity", 0.5);
+		hapticTime = (float)ini.GetDoubleValue("Main Options", "hapticDuration", 0.05);
 		camDistance = (int)ini.GetLongValue("Config Mode", "CameraMoveBackDist", 120);
 		camDistancePA = (int)ini.GetLongValue("Config Mode", "CameraMoveBackDistPA", 240);
 		RXOffset = (float)ini.GetDoubleValue("Config Mode", "RotateXMultiplier", 0.0);
@@ -722,6 +1120,14 @@ namespace Holsters {
 		PAholsterArtWorkPresets[5] = (int)ini.GetLongValue("Config Mode", "PAHolster05CustomArtSlot", 0);
 		PAholsterArtWorkPresets[6] = (int)ini.GetLongValue("Config Mode", "PAHolster06CustomArtSlot", 0);
 		PAholsterArtWorkPresets[7] = (int)ini.GetLongValue("Config Mode", "PAHolster07CustomArtSlot", 0);
+		bHapticsHolsterStrength = (float)ini.GetDoubleValue("bHaptics", "HolsterEffectStrength", 1.0);
+		bHapticsNoticeStrength = (float)ini.GetDoubleValue("bHaptics", "HolsterNoticeStrength", 1.0);
+		Setting* set = Offsets::GetINIPrefSettingSafe("bLeftHandedMode:VR");
+		UInt8 isLeft = set->data.u8;
+		gIsRightHanded = !isLeft;
+		if (g_rockRegistered) {
+			c_holsterButtonID = vr::EVRButtonId::k_EButton_Grip;
+		}
 		readOffsetJson();
 		std::string fileName[8] = { "","LeftShoulder.ini", "RightShoulder.ini", "LeftHip.ini", "RightHip.ini", "LowerBack.ini", "LeftChest.ini", "RightChest.ini", };
 		std::string fileName2[8] = { "","LeftShoulderPA.ini", "RightShoulderPA.ini", "LeftHiPA.ini", "RightHipPA.ini", "LowerBackPA.ini", "LeftChestPA.ini", "RightChestPA.ini", };
@@ -1027,9 +1433,10 @@ namespace Holsters {
 			//_MESSAGE(finalpath.c_str());
 			NiNode* retNode = loadNifFromFile(hP);
 			NiCloneProcess proc;
-			proc.unk18 = Offsets::cloneAddr1;
-			proc.unk48 = Offsets::cloneAddr2;
-			NiNode* holArt = Offsets::cloneNode(retNode, &proc);
+			proc.unk18 = cloneAddr1;
+			proc.unk48 = cloneAddr2;
+			NiNode* holArt = cloneNode(retNode, &proc);
+			//NiNode* holArt = CloneThisNode(retNode);
 			holArt->m_name = artName.c_str();
 			bone->AttachChild(holArt, true);
 			holArt->m_localTransform = artToChange->m_localTransform;
@@ -1086,9 +1493,9 @@ namespace Holsters {
 
 	void scaleHolster() {
 		if (configMode == 1) {
-			if (gCurHolster == 1 || gCurHolster == 2) {
-				return;
-			}
+			//if (gCurHolster == 1 || gCurHolster == 2) {
+				//return;
+			//}
 			if (HolsterRegisteredObjects[gCurHolster]) {
 				NiNode* hol = HolsterRegisteredObjects[gCurHolster]->debugSphere;
 				float nScale(lAxisOffsetY);
@@ -1107,11 +1514,12 @@ namespace Holsters {
 
 	void moveholsterX() {
 		NiNode* hol = nullptr;
-		bool isMelee = WeaponRegisteredObjects[gCurHolster]->isMelee;
+		bool isMelee = false;
+		//bool isMelee = WeaponRegisteredObjects[gCurHolster]->isMelee;
 		if (configMode == 1) {
-			if (gCurHolster == 1 || gCurHolster == 2) {
-				return;
-			}
+			//if (gCurHolster == 1 || gCurHolster == 2) {
+				//return;
+			//}
 			if (HolsterRegisteredObjects[gCurHolster]) {
 				hol = HolsterRegisteredObjects[gCurHolster]->debugSphere;
 			}
@@ -1121,8 +1529,13 @@ namespace Holsters {
 			isMelee = false;
 		}
 		else {
-			if (WeaponRegisteredObjects[gCurHolster]) {
-				hol = WeaponRegisteredObjects[gCurHolster]->WeapMesh;
+			//if (WeaponRegisteredObjects[gCurHolster]) {
+				//hol = WeaponRegisteredObjects[gCurHolster]->WeapMesh;
+			//}
+			auto it = WeaponRegisteredObjects.find(gCurHolster);
+			if (it != WeaponRegisteredObjects.end() && it->second) {
+				hol = it->second->WeapMesh;
+				isMelee = it->second->isMelee;
 			}
 			else {
 				return;
@@ -1132,24 +1545,45 @@ namespace Holsters {
 			float nLoc;
 			float origLoc;
 			if (gCurHolster == 1) {
-				bool isInPA = detectInPowerArmor();
-				isInPA ? nLoc = rAxisOffsetX : nLoc = rAxisOffsetX * -1;
-				isInPA ? origLoc = hol->m_localTransform.pos.z : origLoc = hol->m_localTransform.pos.x;
+				bool isInPA = gInPowerArmor;
+				if (configMode == 2) {
+					isInPA ? nLoc = rAxisOffsetX : nLoc = rAxisOffsetX * -1;
+					isInPA ? origLoc = hol->m_localTransform.pos.z : origLoc = hol->m_localTransform.pos.x;
+				}
+				else {
+					nLoc = rAxisOffsetX * -1;
+					origLoc = hol->m_localTransform.pos.z;
+				}
 				if ((origLoc + nLoc) > 50 || (origLoc + nLoc) < -50) {
 					return;
 				}
-				isInPA ? hol->m_localTransform.pos.z = (origLoc + nLoc) : hol->m_localTransform.pos.x = (origLoc + nLoc);
+				if (configMode == 2) {
+					isInPA ? hol->m_localTransform.pos.z = (origLoc + nLoc) : hol->m_localTransform.pos.x = (origLoc + nLoc);
+				}
+				else {
+					hol->m_localTransform.pos.z = (origLoc + nLoc);
+				}
 			}
 			else if (gCurHolster == 2) {
-				bool isInPA = detectInPowerArmor();
-				isInPA ? nLoc = rAxisOffsetX : nLoc = rAxisOffsetX;
-				isInPA ? origLoc = hol->m_localTransform.pos.z : origLoc = hol->m_localTransform.pos.x;
+				bool isInPA = gInPowerArmor;
+				if (configMode == 2) {
+					isInPA ? nLoc = rAxisOffsetX : nLoc = rAxisOffsetX;
+					isInPA ? origLoc = hol->m_localTransform.pos.z : origLoc = hol->m_localTransform.pos.x;
+				}
+				else {
+					nLoc = rAxisOffsetX * -1;
+					origLoc = hol->m_localTransform.pos.z;
+				}
 				if ((origLoc + nLoc) > 50 || (origLoc + nLoc) < -50) {
 					return;
 				}
-				isInPA ? hol->m_localTransform.pos.z = (origLoc + nLoc) : hol->m_localTransform.pos.x = (origLoc + nLoc);
+				if (configMode == 2) {
+					isInPA ? hol->m_localTransform.pos.z = (origLoc + nLoc) : hol->m_localTransform.pos.x = (origLoc + nLoc);
+				}
+				else {
+					hol->m_localTransform.pos.z = (origLoc + nLoc);
+				}
 			}
-
 			else if (gCurHolster == 3) {
 				nLoc = rAxisOffsetX;
 				isMelee ? origLoc = hol->m_localTransform.pos.z : origLoc = hol->m_localTransform.pos.z;
@@ -1200,19 +1634,19 @@ namespace Holsters {
 					artToMove->m_localTransform.pos = hol->m_localTransform.pos;
 				}
 			}
-		}
-		if (configMode == 1) {
-			HolsterRegisteredObjects[gCurHolster]->offset = hol->m_localTransform.pos;
+			if (configMode == 1) {
+				HolsterRegisteredObjects[gCurHolster]->offset = hol->m_localTransform.pos;
+			}
 		}
 	}
 
 	void moveholsterY() {
 		NiNode* hol = nullptr;
-		bool isMelee;
+		bool isMelee = false;
 		if (configMode == 1) {
-			if (gCurHolster == 1 || gCurHolster == 2) {
-				return;
-			}
+			//if (gCurHolster == 1 || gCurHolster == 2) {
+				//return;
+			//}
 			if (HolsterRegisteredObjects[gCurHolster]) {
 				hol = HolsterRegisteredObjects[gCurHolster]->debugSphere;
 			}
@@ -1222,9 +1656,14 @@ namespace Holsters {
 			isMelee = false;
 		}
 		else {
-			if (WeaponRegisteredObjects[gCurHolster]) {
-				hol = WeaponRegisteredObjects[gCurHolster]->WeapMesh;
-				isMelee = WeaponRegisteredObjects[gCurHolster]->isMelee;
+			//if (WeaponRegisteredObjects[gCurHolster]) {
+				//hol = WeaponRegisteredObjects[gCurHolster]->WeapMesh;
+				//isMelee = WeaponRegisteredObjects[gCurHolster]->isMelee;
+			//}
+			auto it = WeaponRegisteredObjects.find(gCurHolster);
+			if (it != WeaponRegisteredObjects.end() && it->second) {
+				hol = it->second->WeapMesh;
+				isMelee = it->second->isMelee;
 			}
 			else {
 				return;
@@ -1250,24 +1689,25 @@ namespace Holsters {
 			//hol->m_localTransform.pos = (origLoc + nLoc);
 			if (configMode == 2) {
 				std::string artName = "HolsterArt" + std::to_string(gCurHolster);
-				
+
 				NiNode* artToMove = getChildNode(artName.c_str(), (*g_player)->unkF0->rootNode);
 				if (artToMove) {
 					artToMove->m_localTransform.pos = hol->m_localTransform.pos;
 				}
 			}
+			if (configMode == 1) {
+				HolsterRegisteredObjects[gCurHolster]->offset = hol->m_localTransform.pos;
+			}
 		}
-		if (configMode == 1) {
-			HolsterRegisteredObjects[gCurHolster]->offset = hol->m_localTransform.pos;
-		}
+
 	}
 
 	void moveholsterZ() {
 		NiNode* hol = nullptr;
 		if (configMode == 1) {
-			if (gCurHolster == 1 || gCurHolster == 2) {
-				return;
-			}
+			//if (gCurHolster == 1 || gCurHolster == 2) {
+				//return;
+			//}
 			if (HolsterRegisteredObjects[gCurHolster]) {
 				hol = HolsterRegisteredObjects[gCurHolster]->debugSphere;
 			}
@@ -1276,8 +1716,12 @@ namespace Holsters {
 			}
 		}
 		else {
-			if (WeaponRegisteredObjects[gCurHolster]) {
-				hol = WeaponRegisteredObjects[gCurHolster]->WeapMesh;
+			//if (WeaponRegisteredObjects[gCurHolster]) {
+				//hol = WeaponRegisteredObjects[gCurHolster]->WeapMesh;
+			//}
+			auto it = WeaponRegisteredObjects.find(gCurHolster);
+			if (it != WeaponRegisteredObjects.end() && it->second) {
+				hol = it->second->WeapMesh;
 			}
 			else {
 				return;
@@ -1286,22 +1730,44 @@ namespace Holsters {
 		float nLoc;
 		float origLoc;
 		if (gCurHolster == 1) {
-			bool isInPA = detectInPowerArmor();
-			isInPA ? nLoc = lAxisOffsetX : nLoc = lAxisOffsetX;
-			isInPA ? origLoc = hol->m_localTransform.pos.x : origLoc = hol->m_localTransform.pos.z;
+			bool isInPA = gInPowerArmor;
+			if (configMode == 2) {
+				isInPA ? nLoc = lAxisOffsetX : nLoc = lAxisOffsetX;
+				isInPA ? origLoc = hol->m_localTransform.pos.x : origLoc = hol->m_localTransform.pos.z;
+			}
+			else {
+				nLoc = lAxisOffsetX * -1;
+				origLoc = hol->m_localTransform.pos.x;
+			}
 			if ((origLoc + nLoc) > 50 || (origLoc + nLoc) < -50) {
 				return;
 			}
-			isInPA ? hol->m_localTransform.pos.x = (origLoc + nLoc) : hol->m_localTransform.pos.z = (origLoc + nLoc);
+			if (configMode == 2) {
+				isInPA ? hol->m_localTransform.pos.x = (origLoc + nLoc) : hol->m_localTransform.pos.z = (origLoc + nLoc);
+			}
+			else {
+				hol->m_localTransform.pos.x = (origLoc + nLoc);
+			}
 		}
 		else if (gCurHolster == 2) {
-			bool isInPA = detectInPowerArmor();
-			isInPA ? nLoc = lAxisOffsetX : nLoc = lAxisOffsetX * -1;
-			isInPA ? origLoc = hol->m_localTransform.pos.x : origLoc = hol->m_localTransform.pos.z;
+			bool isInPA = gInPowerArmor;
+			if (configMode == 2) {
+				isInPA ? nLoc = lAxisOffsetX : nLoc = lAxisOffsetX * -1;
+				isInPA ? origLoc = hol->m_localTransform.pos.x : origLoc = hol->m_localTransform.pos.z;
+			}
+			else {
+				nLoc = lAxisOffsetX * -1;
+				origLoc = hol->m_localTransform.pos.x;
+			}
 			if ((origLoc + nLoc) > 50 || (origLoc + nLoc) < -50) {
 				return;
 			}
-			isInPA ? hol->m_localTransform.pos.x = (origLoc + nLoc) : hol->m_localTransform.pos.z = (origLoc + nLoc);
+			if (configMode == 2) {
+				isInPA ? hol->m_localTransform.pos.x = (origLoc + nLoc) : hol->m_localTransform.pos.z = (origLoc + nLoc);
+			}
+			else {
+				hol->m_localTransform.pos.x = (origLoc + nLoc);
+			}
 		}
 		else if (gCurHolster == 3) {
 			nLoc = lAxisOffsetX;
@@ -1356,6 +1822,10 @@ namespace Holsters {
 	}
 
 	void rotateholsterX() {
+		if (!WeaponRegisteredObjects[gCurHolster] || WeaponRegisteredObjects[gCurHolster]->WeapMesh == nullptr) {
+			return;
+		}
+
 		NiNode* hol = nullptr;
 		Matrix44 rot;
 		bool MeleeWeapon = (WeaponRegisteredObjects[gCurHolster]->isMelee);
@@ -1375,7 +1845,7 @@ namespace Holsters {
 					hol->m_localTransform.rot = rot.multiply43Left(hol->m_localTransform.rot);
 					rot.multiply43Left(hol->m_localTransform.rot);
 					std::string artName = "HolsterArt" + std::to_string(gCurHolster);
-					
+
 					NiNode* artToMove = getChildNode(artName.c_str(), (*g_player)->unkF0->rootNode);
 					if (artToMove) {
 						artToMove->m_localTransform.rot = hol->m_localTransform.rot;
@@ -1389,6 +1859,9 @@ namespace Holsters {
 	}
 
 	void rotateholsterY() {
+		if (!WeaponRegisteredObjects[gCurHolster] || WeaponRegisteredObjects[gCurHolster]->WeapMesh == nullptr) {
+			return;
+		}
 		Matrix44 rot;
 		NiNode* hol = nullptr;
 		bool MeleeWeapon = (WeaponRegisteredObjects[gCurHolster]->isMelee);
@@ -1422,6 +1895,9 @@ namespace Holsters {
 	}
 
 	void rotateholsterZ() {
+		if (!WeaponRegisteredObjects[gCurHolster] || WeaponRegisteredObjects[gCurHolster]->WeapMesh == nullptr) {
+			return;
+		}
 		NiNode* hol = nullptr;
 		Matrix44 rot;
 		float tAxisOffset;
@@ -1591,10 +2067,51 @@ namespace Holsters {
 		if ((*g_player)->firstPersonSkeleton == nullptr) {
 			return;
 		}
+		if (g_rockRegistered) {
+			heldWeapon = GetHeldWeaponHand();
+			equippedWeapon = GetEquippedWeaponHand();
+			bool isDrawn = (*g_player)->actorState.IsWeaponDrawn();
+			if (!isDrawn) {
+				equippedWeapon = EquippedWeapon::None;
+			}
+			if (equippedWeapon != lastEquippedWeapon || heldWeapon != lastHeldWeapon) {
+				if (equippedWeapon == EquippedWeapon::equippedRight && heldWeapon == HeldWeapon::inLeft) {
+					EquipHandisLeft = true;
+				}
+				else if (equippedWeapon == EquippedWeapon::equippedLeft && heldWeapon == HeldWeapon::inRight) {
+					EquipHandisLeft = false;
+				}
+				else if (equippedWeapon == EquippedWeapon::equippedLeft && heldWeapon == HeldWeapon::None) {
+					EquipHandisLeft = true;
+				}
+				else if (equippedWeapon == EquippedWeapon::equippedRight && heldWeapon == HeldWeapon::None) {
+					EquipHandisLeft = false;
+				}
+				else if (equippedWeapon == EquippedWeapon::None && heldWeapon == HeldWeapon::inLeft) {
+					EquipHandisLeft = true;
+				}
+				else if (equippedWeapon == EquippedWeapon::None && heldWeapon == HeldWeapon::inRight) {
+					EquipHandisLeft = false;
+				}
+				else if (equippedWeapon == EquippedWeapon::None && heldWeapon == HeldWeapon::inBoth) {
+					EquipHandisLeft = gIsRightHanded ? true  : false;
+				}
+				else {
+					EquipHandisLeft = gIsRightHanded ? false : true;
+				}
+			}
+			lastEquippedWeapon = equippedWeapon;
+			lastHeldWeapon = heldWeapon;
+		}
 		if ((BSFadeNode*)(*g_player)->unkF0->rootNode->m_children.m_data[0]->GetAsNiNode()) {
 			BSFlattenedBoneTree* rt = (BSFlattenedBoneTree*)(*g_player)->unkF0->rootNode->m_children.m_data[0]->GetAsNiNode();
 			NiPoint3 rFinger;
-			gIsRightHanded ? rFinger = rt->transforms[boneTreeMap["RArm_Finger23"]].world.pos : rFinger = rt->transforms[boneTreeMap["LArm_Finger23"]].world.pos;
+			if (!g_rockRegistered) {
+				gIsRightHanded ? rFinger = rt->transforms[boneTreeMap["RArm_Finger23"]].world.pos : rFinger = rt->transforms[boneTreeMap["LArm_Finger23"]].world.pos;
+			}
+			else {
+				EquipHandisLeft ? rFinger = rt->transforms[boneTreeMap["LArm_Finger23"]].world.pos : rFinger = rt->transforms[boneTreeMap["RArm_Finger23"]].world.pos;
+			}
 			NiPoint3 offset;
 			for (auto const& element : HolsterRegisteredObjects) {
 				offset = element.second->bone->m_worldTransform.rot * element.second->offset;
@@ -1613,9 +2130,50 @@ namespace Holsters {
 						UInt32 handle = element.first;
 						UInt32 device = 1;
 						curDevice = device;
-						if (ghapticsEnabled) {
-							gIsRightHanded ? vrHook->StartHaptics(2, 0.05, 0.3) : vrHook->StartHaptics(1, 0.05, 0.3);
+						//if (ghapticsEnabled) {
+							//if (!bHapticsFound) {
+						if (ghapticsEnabled && !g_rockRegistered) {
+							gIsRightHanded ? vrHook->StartHaptics(2, hapticTime, hapticIntensity) : vrHook->StartHaptics(1, hapticTime, hapticIntensity);
 						}
+						else if (ghapticsEnabled && g_rockRegistered) {
+							EquipHandisLeft ? vrHook->StartHaptics(1, hapticTime, hapticIntensity) : vrHook->StartHaptics(2, hapticTime, hapticIntensity);
+						}
+						//}
+						//else {
+							//std::vector<int> index, std::vector<int> intensity, std::vector<int> duration
+							//VEST FRONT:
+							// LEFT : RIGHT:
+							//  0 1    2 3
+							//  4 5    6 7
+							//  8 9   10 11
+							// 12 13  14 15
+							// 16 17  18 19
+						if (bHapticsFound) {
+							std::string keys[8] = { "Holster01Buzz", "Holster01Buzz", "Holster02Buzz", "Holster03Buzz", "Holster04Buzz", "Holster05Buzz", "Holster06Buzz", "Holster07Buzz" };
+							//std::thread haptics(playbHapticsFile, keys[handle]);
+							//haptics.detach();
+							//playbHapticsFile(keys[handle]);
+							if (g_tactsuitInterface) {
+								//_MESSAGE(keys[handle].c_str());
+								g_tactsuitInterface->PlayHapticEffect(keys[handle], 0.0, 0.0, bHapticsNoticeStrength, false);
+							}
+						}
+						//if (!isHolsterIntersected) {
+							if (isHolsterButtonPressed) {
+								//_MESSAGE("PLAYER WAS HOLDING HOLSTER BUTTON - SETTING BLOCK");
+								freshIntersectWhileHolding = true;
+							}
+							else {
+								freshIntersectWhileHolding = false;
+							}
+							if (!isHolsterButtonPressed) {
+								//_MESSAGE("PLAYER WAS NOT HOLDING HOLSTER BUTTON - SETTING BLOCK");
+								freshIntersectWhileNotHolding = true;
+							}
+							else {
+								freshIntersectWhileNotHolding = false;
+							}
+						//}
 						isHolsterIntersected = true;
 						if (c_ActivationDisabled) {
 							Setting* set = GetINISetting("fPrimaryWandMaxGrabDistance:VRWand");
@@ -1664,6 +2222,12 @@ namespace Holsters {
 							holster->m_localTransform.scale = 0;
 
 						}
+		
+					
+						//if (isHolsterIntersected) {
+							freshIntersectWhileHolding = false;
+						//}
+						armRemoval = false;
 						isHolsterIntersected = false;
 						if (c_ActivationDisabled) {
 							Setting* set = GetINISetting("fPrimaryWandMaxGrabDistance:VRWand");
@@ -1694,9 +2258,10 @@ namespace Holsters {
 			BSFixedString NameofMesh = HolsterRegisteredObjects[handle]->MeshName;
 			NiNode* retNode = loadNifFromFile("Data/Meshes/VRH/1x1Sphere.nif");
 			NiCloneProcess proc;
-			proc.unk18 = Offsets::cloneAddr1;
-			proc.unk48 = Offsets::cloneAddr2;
-			hol = Offsets::cloneNode(retNode, &proc);
+			proc.unk18 = cloneAddr1;
+			proc.unk48 = cloneAddr2;
+			hol = cloneNode(retNode, &proc);
+			//hol = CloneThisNode(retNode);
 			if (!hol) {
 				_MESSAGE("NIF NOT LOADED");
 			}
@@ -1708,7 +2273,7 @@ namespace Holsters {
 						if (nextNode) {
 							BSTriShape* NodeTri = nextNode->GetAsBSTriShape();
 							if (NodeTri) {
-								std::string n = "OrbMesh" + handle + i;
+								std::string n = "OrbMesh" + handle + std::to_string(i);
 								nextNode->m_name = n.c_str();
 								//_MESSAGE("RENAMED ORB");
 							}
@@ -1808,8 +2373,12 @@ namespace Holsters {
 			auto lookup = detectInPowerArmor() ? g_weaponOffsets->getOffset(hN, powerArmor) : g_weaponOffsets->getOffset(hN, noPA);
 			if (lookup.has_value()) {
 				_customTransform = lookup.value();
+				std::string xx = ("Config Found: " + std::to_string(i));
+				_MESSAGE(xx.c_str());
 			}
 			else {
+				std::string xxx = ("Config Not Found: " + hN);
+				_MESSAGE(xxx.c_str());
 				return;
 			}
 			BSFixedString bone = c1.c_str();
@@ -1829,23 +2398,29 @@ namespace Holsters {
 	void destroyAllHolsterSpheres() {
 		//_MESSAGE("POWER ARMOR ENTER / EXIT EVENT:: REMOVING REDUNDANT HOLSTER SPHERES");
 		NiNode* hol = FindNode("Holster1");
-		if (!hol) {
-			return;
-		}
-		else {
+		/*if (hol) {
+			//return;
 			hol->flags |= 0x1;
 			hol->m_localTransform.scale = 0;
 			hol->m_parent->RemoveChild(hol);
 		}
+		//else {
+			//hol->flags |= 0x1;
+			//hol->m_localTransform.scale = 0;
+			//hol->m_parent->RemoveChild(hol);
+		//}
 		hol = FindNode("Holster2");
-		if (!hol) {
-			return;
-		}
-		else {
+		if (hol) {
+			//return;
 			hol->flags |= 0x1;
 			hol->m_localTransform.scale = 0;
 			hol->m_parent->RemoveChild(hol);
-		}
+		 }*/
+		//else {
+			//hol->flags |= 0x1;
+			//hol->m_localTransform.scale = 0;
+			//hol->m_parent->RemoveChild(hol);
+		//}
 		for (int i = 1; i < 8; i++) {
 			delete HolsterRegisteredObjects[i];
 			HolsterRegisteredObjects.erase(i);
@@ -1977,7 +2552,7 @@ namespace Holsters {
 	void displayWeapon(TESObjectREFR* object, UInt32 handle) {
 		if (WeaponRegisteredObjects[handle]) {
 			_WeaponHolsterInProgress = true;
-			bool isInPowerArmor = detectInPowerArmor();
+			bool isInPowerArmor = gInPowerArmor;
 			NiNode* bone;
 			NiNode* holsteredW;
 			BSFixedString weapName;
@@ -2045,9 +2620,10 @@ namespace Holsters {
 				}
 			}
 			NiCloneProcess proc;
-			proc.unk18 = Offsets::cloneAddr1;
-			proc.unk48 = Offsets::cloneAddr2;
-			holsteredW = Offsets::cloneNode(Weap, &proc);
+			proc.unk18 = cloneAddr1;
+			proc.unk48 = cloneAddr2;
+			holsteredW = cloneNode(Weap, &proc);
+			//holsteredW = CloneThisNode(Weap);
 			if (testclonefix) {
 				clonemeshfix(Weap, holsteredW);
 				std::string aaa = "Original " + std::to_string(c_OriginalNodes.size()) + " Clone " + std::to_string(c_CloneNodes.size());
@@ -2077,6 +2653,7 @@ namespace Holsters {
 				Weap = nullptr;
 				//ImportHolster = nullptr;
 			}
+			Weap = nullptr;
 			if (holsteredW) {
 				holsteredW->m_name = BSFixedString(NameofHolster);
 				NiNode* Weap2 = getChildNode(NameofHolster, (*g_player)->unkF0->rootNode); //Check for accidental spawned clones
@@ -2255,18 +2832,29 @@ namespace Holsters {
 				std::string mess = "Loading File:: " + finalpath;
 				//_MESSAGE(mess.c_str());
 				NiNode* retNode = loadNifFromFile(path);
-				NiNode* holArt = Offsets::cloneNode(retNode, &proc);
-				holArt->m_name = artName.c_str();
-				bone->AttachChild(holArt, true);
-				holArt->m_localTransform = holsteredW->m_localTransform;
-				WeaponRegisteredObjects[handle]->ArtMesh = holArt;
-				//_MESSAGE("REGISTER HOLSTERED WEAPON : CUSTOM HOLSTER ART APPLIED");
-				_WeaponHolsterInProgress = false;
+				proc.unk18 = cloneAddr1;
+				proc.unk48 = cloneAddr2;
+				NiNode* holArt = cloneNode(retNode, &proc);
+				//NiNode* holArt = CloneThisNode(retNode);
+				//NiNode* attachNode = attachNode->Create(0);
+				//if (attachNode) {
+					//_MESSAGE("ABOUT TO CLONE");
+					//bone->AttachChild(attachNode, true);
+					//attachNode->m_name = "holsterNode";
+					//NiNode* holArt = Offsets::cloneNode(retNode, &proc);
+					holArt->m_name = artName.c_str();
+					bone->AttachChild(holArt, true);
+					holArt->m_localTransform = holsteredW->m_localTransform;
+					WeaponRegisteredObjects[handle]->ArtMesh = holArt;
+					//_MESSAGE("REGISTER HOLSTERED WEAPON : CUSTOM HOLSTER ART APPLIED");
+					_WeaponHolsterInProgress = false;
+				//}
 			}
 			_WeaponHolsterInProgress = false;
 		}
 		_WeaponHolsterInProgress = false;
 	}
+
 
 	void nDestoryWeapon(UInt32 handle, bool destroyArt, bool playsound) {
 		if (gShowWeapons) {
@@ -2276,19 +2864,19 @@ namespace Holsters {
 				}
 				NiNode* weap = WeaponRegisteredObjects[handle]->WeapMesh;
 				if (weap) {
-						weap->flags |= 0x1;
-						weap->m_localTransform.scale = 0;
-						NiNode* pNode = nullptr;
-						gInPowerArmor ? pNode = getChildNode(PAWeaponBones[handle].c_str(), (*g_player)->unkF0->rootNode) : pNode = getChildNode(WeaponBones[handle].c_str(), (*g_player)->unkF0->rootNode);
-						if (pNode != nullptr) {
-							NiNode* wTBD = getChildNode(HolsterNames[handle].c_str(), (*g_player)->unkF0->rootNode);
-							if (wTBD != nullptr) {
-								_MESSAGE("REMOVING WEAPON");
-								pNode->RemoveChild(wTBD);
-								pNode = nullptr;
-								_MESSAGE("WEAPON REMOVED");
-							}
+					weap->flags |= 0x1;
+					weap->m_localTransform.scale = 0;
+					NiNode* pNode = nullptr;
+					gInPowerArmor ? pNode = getChildNode(PAWeaponBones[handle].c_str(), (*g_player)->unkF0->rootNode) : pNode = getChildNode(WeaponBones[handle].c_str(), (*g_player)->unkF0->rootNode);
+					if (pNode != nullptr) {
+						NiNode* wTBD = getChildNode(HolsterNames[handle].c_str(), (*g_player)->unkF0->rootNode);
+						if (wTBD != nullptr) {
+							//_MESSAGE("REMOVING WEAPON");
+							pNode->RemoveChild(wTBD);
+							pNode = nullptr;
+							//_MESSAGE("WEAPON REMOVED");
 						}
+					}
 				}
 				delete WeaponRegisteredObjects[handle];
 				WeaponRegisteredObjects.erase(handle);
@@ -2341,7 +2929,7 @@ namespace Holsters {
 						}
 					}
 					else {
-						bool isInPowerArmor = detectInPowerArmor();
+						bool isInPowerArmor = gInPowerArmor;
 						//_MESSAGE("EQUIP EVENT MOVE: NO CONFIG FOR THIS ITEM FOUND...");
 						//_MESSAGE("APPLYING A DEFAULT PROFILE......");
 
@@ -2421,6 +3009,11 @@ namespace Holsters {
 
 	void nRegisterWeapon(BSFixedString weapName, TESForm* baseForm, TESObjectREFR* object, UInt32 handle, bool isMeleeW) {
 		if (gShowWeapons) {
+			//_MESSAGE("REGISTERING WEAPON");
+			if (!object) {
+				_MESSAGE("NO OBJECT");
+				return;
+			}
 			NiNode* bone = nullptr;
 			if (weapName == ".44") {
 				weapName = "44cal";
@@ -2433,8 +3026,23 @@ namespace Holsters {
 				VisualArt[handle] = weapName;
 				WeaponRegisteredObjects[handle] = weap1;
 				displayWeapon(object, handle);
+				if (AddedViaAPI && baseForm) {
+					//auto p = Offsets::GetItemCount(object);
+					//_MESSAGE("Player has %s of this item", std::to_string(p).c_str());
+					//_MESSAGE("ACTIVATE REF");
+					auto bound = static_cast<TESBoundObject*>(object->baseForm);
+					TESObjectREFR* playerRef = *g_player;
+					Offsets::ActivateRef2(object, playerRef, bound, 1, true, false, false);
+					//auto pp = Offsets::GetItemCount(object);
+					//if (pp != p + 1) {
+						//_MESSAGE("SOMETHING WENT WRONG");
+						//_MESSAGE(weapName.c_str());
+					//}
+					AddedViaAPI = false;
+				}
 			}
 		}
+		return;
 	}
 
 	// Papyrus}
@@ -2635,32 +3243,26 @@ public:
 		gIsRightHanded = !gIsRightHanded;
 	}
 
-	bool VH_CALL AddHolster(std::uint32_t holsterIndex, const char* weaponName,
-		void* baseForm, void* weaponRef, bool isMelee) override
+	bool VH_CALL AddHolster(std::uint32_t holsterIndex, void* weaponRef) override
 	{
 		if (holsterIndex < 1 || holsterIndex > 7) {
 			_MESSAGE("AddHolster: Invalid holster index %d", holsterIndex);
 			return false;
 		}
-		if (!weaponName || weaponName[0] == '\0') {
-			_MESSAGE("AddHolster: Invalid weapon name");
-			return false;
-		}
-		if (!baseForm || !weaponRef) {
-			_MESSAGE("AddHolster: Invalid baseForm or weaponRef");
+		if (!weaponRef) {
+			_MESSAGE("AddHolster: Invalid weaponRef");
 			return false;
 		}
 
 		// Cast void* back to game types
-		TESForm* form = reinterpret_cast<TESForm*>(baseForm);
 		TESObjectREFR* refr = reinterpret_cast<TESObjectREFR*>(weaponRef);
 
 		// Call new addHolster function
-		std::string nameStr(weaponName);
-		void addHolster(int handle, std::string weapName, TESForm * baseForm, TESObjectREFR * object, bool isMeleeW);
-		
+		//void addHolster(int handle, std::string weapName, TESForm * baseForm, TESObjectREFR * object, bool isMeleeW);
 
-		_MESSAGE("AddHolster: Added '%s' to holster %d (melee=%d)", weaponName, holsterIndex, isMelee);
+		Holsters::addHolster(static_cast<int>(holsterIndex), refr);
+
+		_MESSAGE("Added Weapon to holster %d", holsterIndex);
 		return true;
 	}
 
@@ -2674,6 +3276,3 @@ extern "C" __declspec(dllexport) VirtualHolstersAPI * VH_CALL VHAPI_GetApi()
 {
 	return &VirtualHolstersAPIImpl::GetSingleton();
 }
-
-
-

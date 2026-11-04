@@ -13,7 +13,12 @@
 #include "InvSorting.h"
 #include "BSFlattenedBoneTree.h"
 #include <thread>
+#include "tactsuitinterface001.h"
+#include "ROCKProviderApi.h"
+#include "KabutoAPI.h"
 
+extern rock::provider::RockProviderConsumerHandleV1 g_rockHandle;
+extern bool g_rockRegistered;
 extern PluginHandle g_pluginHandle;
 extern F4SEPapyrusInterface* g_papyrus;
 extern F4SEMessagingInterface* g_messaging;
@@ -24,25 +29,35 @@ extern bool _isTouchEnabled;
 extern bool ghapticsEnabled;
 extern bool gshowSpheres;
 extern bool gShowWeapons;
-extern bool MenuCheck;
-extern bool fistsPressed;
-extern bool infoPressed;
+
+extern std::atomic<bool> MenuCheck;
+extern std::atomic<bool> fistsPressed;
+extern std::atomic<bool> infoPressed;
+extern std::atomic<bool> GameLoadTimer;
+extern bool AddedViaAPI;
+extern bool bHideSaveMsg;
 extern UInt32 gCurHolster;
 extern OpenVRHookManagerAPI* vrHook;
+extern tactsuitPluginApi::ITactsuitInterface001* g_tactsuitInterface;
 extern std::map<std::string, int> boneTreeMap;
 extern std::vector<std::string> boneTreeVec;
 extern std::string holsteredWeapNames[];
 extern TESObjectREFR* HolsterContainers[];
 extern int doublepress;
-
+extern bool gConfigDoublePress;
+extern float bHapticsHolsterStrength;
+extern float bHapticsNoticeStrength;
+extern KabutoAPI* Kabuto;
 
 namespace Holsters {
-
+	extern std::atomic<bool> _isHolsterButtonPressed;
+	extern std::atomic<bool> armRemoval;
 	extern int c_holsterButtonID;
 	extern bool c_VATSDisabled;
 	extern bool c_ActivationDisabled;
 	extern bool isHolsterIntersected;
 	extern bool initBoneTreeFlag;
+	
 	extern std::map<UInt32, class MyHolster*> HolsterRegisteredObjects;
 	typedef bool(*_IsSneaking)(Actor* a_actor);
 	extern RelocAddr<_IsSneaking> IsSneaking;
@@ -55,7 +70,7 @@ namespace Holsters {
 			ArtMesh = nullptr;
 			HolsterName = "name";
 			isMelee = false;
-			WeaponName ="name";
+			WeaponName = "name";
 			ThisWeapon = nullptr;
 			ThisForm = 0;
 		}
@@ -76,7 +91,7 @@ namespace Holsters {
 	};
 
 	class MyHolster {
-	public:		
+	public:
 		MyHolster() {
 			radius = 0;
 			bone = nullptr;
@@ -88,7 +103,7 @@ namespace Holsters {
 			offset.z = 0;
 			debugSphere = nullptr;
 			MeshPath = "path";
-			MeshName = "name";	
+			MeshName = "name";
 		}
 
 		MyHolster(float a_radius, NiNode* a_bone, NiPoint3 a_offset, BSFixedString a_mesh, BSFixedString a_meshN) : radius(a_radius), bone(a_bone), offset(a_offset), MeshPath(a_mesh), MeshName(a_meshN) {
@@ -96,7 +111,7 @@ namespace Holsters {
 			stickyLeft = false;
 			turnOnDebugSpheres = false;
 			debugSphere = nullptr;
-		}		
+		}
 		float radius;
 		NiNode* bone;
 		NiPoint3 offset;
@@ -130,9 +145,9 @@ namespace Holsters {
 		HolsterEvent_SheathWeapon = 17,
 		HolsterEvent_AddInv = 18
 	};
-	
+
 	NiNode* loadNifFromFile(char* path);
-	
+
 	bool initBoneTree();
 	void MainLoop();
 	void checkArmor();
@@ -190,7 +205,7 @@ namespace Holsters {
 	void RegisterForHolsterEvents(StaticFunctionTag* base, VMObject* thisObject);
 	void UnRegisterForHolsterEvents(StaticFunctionTag* base, VMObject* thisObject);
 	bool RegisterFuncs(VirtualMachine* vm);
-	
+
 	inline NiNode* loadNifFromFile(char* path) {
 		uint64_t flags[2];
 		flags[0] = 0x0;
@@ -200,4 +215,4 @@ namespace Holsters {
 
 		return (NiNode*)mem;
 	}
-}   
+}

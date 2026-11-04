@@ -24,6 +24,7 @@
     <ProjectGuid>{06916206-a271-415f-9334-1f69cdf2f807}</ProjectGuid>
     <RootNamespace>F4SEplugintemplate</RootNamespace>
     <ProjectName>VirtualHolsters</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -85,6 +86,7 @@
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>C:\Users\thecy\Documents\Modding\VisualStudio\FO4VR\openvr\headers;../f4sevr\src;..\f4sevr\src\f4sevr;include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <LibraryPath>lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <OutDir>..\..\..\..\..\..\..\..\Games\FO4VR_MGO2\mods\Virtual Holsters\F4SE\Plugins</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -165,6 +167,7 @@
     <ClCompile Include="ConfigModeMenu.cpp" />
     <ClCompile Include="Holsters.cpp" />
     <ClCompile Include="hook.cpp" />
+    <ClCompile Include="include\tactsuitinterface001.cpp" />
     <ClCompile Include="InvSorting.cpp" />
     <ClCompile Include="main.cpp">
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</WholeProgramOptimization>
@@ -173,6 +176,7 @@
     <ClCompile Include="MenuChecker.cpp" />
     <ClCompile Include="MiscStructs.cpp" />
     <ClCompile Include="Offsets.cpp" />
+    <ClCompile Include="RockFunctionHelpers.cpp" />
     <ClCompile Include="Utils.cpp" />
     <ClCompile Include="VRHook.cpp" />
     <ClCompile Include="weaponOffset.cpp" />
@@ -180,10 +184,13 @@
   <ItemGroup>
     <ClInclude Include="BSFlattenedBoneTree.h" />
     <ClInclude Include="ConfigModeMenu.h" />
+    <ClInclude Include="FRIKApi.h" />
     <ClInclude Include="Holsters.h" />
     <ClInclude Include="hook.h" />
+    <ClInclude Include="include\tactsuitinterface001.h" />
     <ClInclude Include="include\version.h" />
     <ClInclude Include="InvSorting.h" />
+    <ClInclude Include="KabutoAPI.h" />
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="MenuChecker.h" />
     <ClInclude Include="MiscStructs.h" />
@@ -192,6 +199,7 @@
     <ClInclude Include="OpenVRTypes.h" />
     <ClInclude Include="PapyrusVRAPI.h" />
     <ClInclude Include="PapyrusVRTypes.h" />
+    <ClInclude Include="RockFunctionHelpers.h" />
     <ClInclude Include="SimpleIni.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="VirtualHolstersAPI.h" />

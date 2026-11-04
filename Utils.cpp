@@ -10,8 +10,78 @@
 #include <Windows.h>
 #include <vector>
 #include <regex>
+#include<fstream>
+#include <sstream>
 
 namespace Holsters {
+
+	template <typename T, std::size_t N>
+	struct BSTSmallArray {
+		T* data{ inlineBuffer };
+		uint32_t  size{ 0 };
+		uint32_t  capacity{ 0x80000000 | static_cast<uint32_t>(N) }; // 0x80000000 = inline mode flag
+		T         inlineBuffer[N]{};
+
+		BSTSmallArray() = default;
+	};
+
+	using BSTSmallArray4 = BSTSmallArray<uint32_t, 4>;
+	static_assert(sizeof(BSTSmallArray4) == 0x20, "BSTSmallArray4 size mismatch!");
+
+	NiNode* CloneThisNode(NiNode* node) {
+		NiAVObject* result = Offsets::cloneNode2(node);
+		if (result) {
+			return static_cast<NiNode*>(result);
+		}
+		else {
+			return nullptr;
+		}
+	}
+
+	void LogNodeChildren(NiNode* a_node, int a_depth = 0) {
+		if (!a_node) return;
+
+		// 1. Create a prefix for indentation to make the log readable
+		std::string indent = "";
+		for (int i = 0; i < a_depth; i++) indent += "  ";
+
+		// 2. Log the current node
+		std::string n = a_node->m_name;
+		std::string nn = "c_" + n;
+		a_node->m_name = nn.c_str();
+
+		const char* name = a_node->m_name.c_str();
+		//_MESSAGE("%s[Node] %s", indent.c_str(), (name && name[0]) ? name : "<Blank Name>");
+
+		// 3. Iterate through the NiTArray of children
+		// m_children.m_size is the current count
+		// m_children.m_data is the pointer to the array of NiAVObject*
+		for (UInt32 i = 0; i < a_node->m_children.m_size; i++) {
+			NiAVObject* child = a_node->m_children.m_data[i];
+
+			if (child) {
+				// Check if the child is another NiNode (so we can recurse)
+				NiNode* childNode = child->GetAsNiNode();
+
+				if (childNode) {
+					// Recursive call to see the whole tree
+					LogNodeChildren(childNode, a_depth + 1);
+				}
+				else {
+					// It's a leaf node (likely a NiTriShape or BSTriShape)
+					std::string n = child->m_name;
+					std::string nn = "c_" + n;
+					child->m_name = nn.c_str();
+					const char* childName = child->m_name.c_str();
+					//_MESSAGE("%s  [Leaf] %s", indent.c_str(), (childName && childName[0]) ? childName : "<Blank Name>");
+				}
+			}
+			else {
+				//_MESSAGE("%s  [Empty Slot]", indent.c_str());
+			}
+		}
+	}
+
 
 	typedef Setting* (*_SettingCollectionList_GetPtr)(SettingCollectionList* list, const char* name);
 	RelocAddr<_SettingCollectionList_GetPtr> SettingCollectionList_GetPtr(0x501500);
@@ -90,6 +160,14 @@ namespace Holsters {
 		infoPressed = false;
 		doublepress = 0;
 	}
+
+	void doublePressTimer() {
+		gConfigDoublePress = true;
+		Sleep(300);
+		gConfigDoublePress = false;
+	}
+
+
 
 	void checkingloadingcompleted() {
 		//Sleep(500);
@@ -241,6 +319,7 @@ namespace Holsters {
 			{
 				filenames.push_back(search_data.cFileName);
 			} while (FindNextFileA(handle, &search_data));
+			FindClose(handle);
 		}
 		return filenames;
 	}
@@ -306,11 +385,159 @@ namespace Holsters {
 		return LookupFormByID(formID);
 	}
 
+	void gameLoadingTimer(int time) {
+		Sleep(time);
+		GameLoadTimer = true;
+	}
+
+	void bHaptics(PositionType location, std::vector<int> index, std::vector<int> intensity, std::vector<int> duration) {
+		uintptr_t moduleBase = (uintptr_t)GetModuleHandleA("tactsuit_vr_plugin.dll");
+
+		if (moduleBase) {
+			_MESSAGE("Found Module");
+			// 3. Calculate the actual address (Base + RVA)
+			// Let's say your RVA from IDA/Ghidra is 0x54A20
+			uintptr_t targetAddress = moduleBase + 0x44880;
+
+			// 4. Cast the address to your function pointer type
+			Offsets::_ProvidebHapticFeedBack func = reinterpret_cast<Offsets::_ProvidebHapticFeedBack>(targetAddress);
+
+			// 5. Call it safely
+			// Ensure you are calling this on the correct thread (usually the Main Thread)
+			int numOfEffects = index.size() - 1;
+			for (int i = 0; i <= numOfEffects; i++) {
+				func(location, index[i], intensity[i], duration[i]);
+				Sleep(duration[i]);
+			}
+
+			//_MESSAGE("External function called. Result: %d", result);
+		}
+		else {
+			//_ERROR("ExternalMod.dll not found in memory.");
+		}
+	}
+
+	void regbHapticsFile() {
+		uintptr_t moduleBase = (uintptr_t)GetModuleHandleA("tactsuit_vr_plugin.dll");
+		if (moduleBase) {
+			
+			//uintptr_t targetAddress = moduleBase + 0x1be70;
+			uintptr_t targetAddress = moduleBase + 0x1c4c0; //RegisterFeedbackFromTactFile
+			Offsets::_RegFeedBackFile func = reinterpret_cast<Offsets::_RegFeedBackFile>(targetAddress);
+			std::string path = ".\\Data\\F4SE\\plugins\\VRH_bHaptics\\";
+			std::string files[22] = { "Holster01.tact", "Holster01.tact", "Holster02.tact", "Holster03.tact", "Holster04.tact", "Holster05.tact", "Holster06.tact", "Holster07.tact",
+			"UnHolster01.tact", "UnHolster02.tact", "UnHolster03.tact", "UnHolster04.tact", "UnHolster05.tact", "UnHolster06.tact", "UnHolster07.tact",
+			"Holster01Buzz.tact", "Holster02Buzz.tact", "Holster03Buzz.tact", "Holster04Buzz.tact", "Holster05Buzz.tact", "Holster06Buzz.tact", "Holster07Buzz.tact" };
+			std::string keys[22] = {"Holster00", "Holster01", "Holster02", "Holster03", "Holster04", "Holster05", "Holster06", "Holster07",
+			"UnHolster01", "UnHolster02", "UnHolster03", "UnHolster04", "UnHolster05", "UnHolster06", "UnHolster07", 
+			"Holster01Buzz", "Holster02Buzz", "Holster03Buzz", "Holster04Buzz", "Holster05Buzz", "Holster06Buzz", "Holster07Buzz" };
+			for (int i = 1; i <= 21; i++) {
+				std::string path2 = path + files[i];
+				std::ostringstream sstream{};
+				std::ifstream fs(path2);
+				sstream << fs.rdbuf();
+				const std::string tactFileStr(sstream.str());
+				func(keys[i].c_str(), tactFileStr.c_str());
+			}			
+			_MESSAGE("TACT FILES FILE REGISTERED");
+		}
+		
+	}
+
+	void playbHapticsFile(std::string key) {
+		if (g_tactsuitInterface) {
+			_MESSAGE(key.c_str());
+			g_tactsuitInterface->PlayHapticEffect(key, 0.0, 0.0, 1.0, true);
+		}
+		//uintptr_t moduleBase = (uintptr_t)GetModuleHandleA("tactsuit_vr_plugin.dll");
+		//if (moduleBase) {
+			//uintptr_t targetAddress = moduleBase + 0x1cff0;
+			//uintptr_t targetAddress = moduleBase + 0x1d660; //SubmitRegistered
+			//Offsets::_PlayFeedBackFile func = reinterpret_cast<Offsets::_PlayFeedBackFile>(targetAddress);
+			//func(key.c_str());
+		//}
+	}
+
+	void matchHapticsOnController() {
+		gIsRightHanded ? vrHook->StartHaptics(2, 0.05, 2.0) : vrHook->StartHaptics(1, 0.05, 2.0);
+		Sleep(50);
+		gIsRightHanded ? vrHook->StartHaptics(2, 0.2, 0.2) : vrHook->StartHaptics(1, 0.2, 0.2);
+	}
+
+	void matchHapticsOnController2() {
+		gIsRightHanded ? vrHook->StartHaptics(2, 0.2, 0.2) : vrHook->StartHaptics(1, 0.2, 0.2);
+		Sleep(200);
+		gIsRightHanded ? vrHook->StartHaptics(2, 0.05, 2.0) : vrHook->StartHaptics(1, 0.05, 2.0);
+	}
+
+
+	TESObjectREFR* SpawnHolsterWeapon(PlayerCharacter* player, BGSObjectInstance* weaponInstance, NiPoint3 targetPos) {
+		// CHANGE THIS LINE: Use UInt32 exactly as defined in your typedef
+		UInt32 resultHandle = 0;
+
+		NiPoint3 targetRot = { 0.0f, 0.0f, 0.0f };
+
+		// 1. Execute the Drop
+		// resultHandle is passed as a pointer (RDX), so &resultHandle is correct
+		Offsets::DropObject(player, &resultHandle, weaponInstance, nullptr, 1, &targetPos, &targetRot);
+
+		// 2. Validate the handle
+		if (resultHandle != 0) {
+			TESObjectREFR* spawnedRef = nullptr;
+
+			// 3. Resolve and Call
+			// Your RelocAddr class has an implicit conversion 'operator T()', 
+			// so you can use the name directly.
+			if (LookupREFRByHandle(&resultHandle, &spawnedRef)) {
+				return spawnedRef;
+			}
+		}
+
+		return nullptr;
+	}
+	
 	//---------------------------------------------
 
-	
 
 
+
+	using DropObject_t = uint32_t * (*)(
+		Actor* a_actor,
+		uint32_t* a_outHandle,
+		BGSObjectInstance* a_itemInstance,
+		BSTSmallArray4* a_stackData,
+		int32_t            a_count,
+		NiPoint3* a_pos,
+		NiPoint3* a_rot
+		);
+
+	uint32_t DropItemFromActor(
+		Actor* actor,
+		TESForm* baseForm,
+		TBO_InstanceData* instanceData = nullptr,
+		int32_t count = 1,
+		NiPoint3* pos = nullptr,
+		NiPoint3* rot = nullptr)
+	{
+		if (!actor || !baseForm) return 0;
+		RelocAddr<DropObject_t> DropObject(0xDDFA60);
+
+		BGSObjectInstance itemInstance{ baseForm, instanceData };
+		BSTSmallArray4 stackData{};
+		uint32_t outHandle = 0;
+
+		DropObject(actor, &outHandle, &itemInstance, &stackData, count, pos, rot);
+
+		return outHandle;
+	}
+
+	void removeHolsterTimer() {
+		Sleep(1500);
+		if (_isHolsterButtonPressed && isHolsterIntersected) {
+			_MESSAGE("DESTROY HOLSTER");
+			RemoveThrowableHolster(gCurHolster);
+		}
+	}
 
 
 
